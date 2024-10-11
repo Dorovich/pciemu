@@ -32,9 +32,9 @@
  */
 static void pciemu_reset(PCIEMUDevice *dev)
 {
-    pciemu_irq_reset(dev);
-    pciemu_dma_reset(dev);
-    pciemu_mmio_reset(dev);
+	pciemu_irq_reset(dev);
+	pciemu_dma_reset(dev);
+	pciemu_mmio_reset(dev);
 }
 
 /* -----------------------------------------------------------------------------
@@ -55,10 +55,10 @@ static void pciemu_reset(PCIEMUDevice *dev)
  */
 static void pciemu_device_init(PCIDevice *pci_dev, Error **errp)
 {
-    PCIEMUDevice *dev = PCIEMU_DEVICE(pci_dev);
-    pciemu_irq_init(dev, errp);
-    pciemu_dma_init(dev, errp);
-    pciemu_mmio_init(dev, errp);
+	PCIEMUDevice *dev = PCIEMU_DEVICE(pci_dev);
+	pciemu_irq_init(dev, errp);
+	pciemu_dma_init(dev, errp);
+	pciemu_mmio_init(dev, errp);
 }
 
 /**
@@ -73,10 +73,10 @@ static void pciemu_device_init(PCIDevice *pci_dev, Error **errp)
  */
 static void pciemu_device_fini(PCIDevice *pci_dev)
 {
-    PCIEMUDevice *dev = PCIEMU_DEVICE(pci_dev);
-    pciemu_irq_fini(dev);
-    pciemu_dma_fini(dev);
-    pciemu_mmio_fini(dev);
+	PCIEMUDevice *dev = PCIEMU_DEVICE(pci_dev);
+	pciemu_irq_fini(dev);
+	pciemu_dma_fini(dev);
+	pciemu_mmio_fini(dev);
 }
 
 /**
@@ -89,7 +89,7 @@ static void pciemu_device_fini(PCIDevice *pci_dev)
  */
 static void pciemu_device_reset(DeviceState *dev)
 {
-    pciemu_reset(PCIEMU_DEVICE(dev));
+	pciemu_reset(PCIEMU_DEVICE(dev));
 }
 
 /* -----------------------------------------------------------------------------
@@ -109,19 +109,19 @@ static void pciemu_device_reset(DeviceState *dev)
  */
 static void pciemu_class_init(ObjectClass *klass, void *class_data)
 {
-    DeviceClass *device_class = DEVICE_CLASS(klass);
-    PCIDeviceClass *pci_device_class = PCI_DEVICE_CLASS(klass);
+	DeviceClass *device_class = DEVICE_CLASS(klass);
+	PCIDeviceClass *pci_device_class = PCI_DEVICE_CLASS(klass);
 
-    pci_device_class->realize = pciemu_device_init;
-    pci_device_class->exit = pciemu_device_fini;
-    pci_device_class->vendor_id = PCIEMU_HW_VENDOR_ID;
-    pci_device_class->device_id = PCIEMU_HW_DEVICE_ID;
-    pci_device_class->revision = PCIEMU_HW_REVISION;
-    pci_device_class->class_id = PCI_CLASS_OTHERS;
+	pci_device_class->realize = pciemu_device_init;
+	pci_device_class->exit = pciemu_device_fini;
+	pci_device_class->vendor_id = PCIEMU_HW_VENDOR_ID;
+	pci_device_class->device_id = PCIEMU_HW_DEVICE_ID;
+	pci_device_class->revision = PCIEMU_HW_REVISION;
+	pci_device_class->class_id = PCI_CLASS_OTHERS;
 
-    set_bit(DEVICE_CATEGORY_MISC, device_class->categories);
-    device_class->desc = PCIEMU_DEVICE_DESC;
-    device_class->reset = pciemu_device_reset;
+	set_bit(DEVICE_CATEGORY_MISC, device_class->categories);
+	device_class->desc = PCIEMU_DEVICE_DESC;
+	device_class->legacy_reset = pciemu_device_reset;
 }
 
 /* -----------------------------------------------------------------------------
@@ -145,14 +145,14 @@ static void pciemu_class_init(ObjectClass *klass, void *class_data)
  *
  */
 static const TypeInfo pciemu_info = {
-    .name = TYPE_PCIEMU_DEVICE,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIEMUDevice),
-    .class_init = pciemu_class_init,
-    .interfaces =
+	.name = TYPE_PCIEMU_DEVICE,
+	.parent = TYPE_PCI_DEVICE,
+	.instance_size = sizeof(PCIEMUDevice),
+	.class_init = pciemu_class_init,
+	.interfaces =
         (InterfaceInfo[]){
-            { INTERFACE_PCIE_DEVICE },
-            {},
+		{ INTERFACE_PCIE_DEVICE },
+		{},
         },
 };
 
@@ -172,7 +172,7 @@ static const TypeInfo pciemu_info = {
  */
 static void pciemu_register_types(void)
 {
-    type_register_static(&pciemu_info);
+	type_register_static(&pciemu_info);
 }
 
 type_init(pciemu_register_types)

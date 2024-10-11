@@ -29,29 +29,29 @@ typedef uint64_t dma_mask_t;
 
 /* transfer descriptor */
 typedef struct DMATransferDesc {
-    dma_addr_t src;
-    dma_addr_t dst;
-    dma_size_t len;
+	dma_addr_t src;
+	dma_addr_t dst;
+	dma_size_t len;
 } DMATransferDesc;
 
 /* configuration of the DMA engine pre-execution */
 typedef struct DMAConfig {
-    DMATransferDesc txdesc;
-    dma_cmd_t cmd;
-    dma_mask_t mask;
+	DMATransferDesc txdesc;
+	dma_cmd_t cmd;
+	dma_mask_t mask;
 } DMAConfig;
 
 /* status of the DMA engine */
 typedef enum DMAStatus {
-    DMA_STATUS_IDLE,
-    DMA_STATUS_EXECUTING,
-    DMA_STATUS_OFF,
+	DMA_STATUS_IDLE,
+	DMA_STATUS_EXECUTING,
+	DMA_STATUS_OFF,
 } DMAStatus;
 
 typedef struct DMAEngine {
-    DMAConfig config;
-    DMAStatus status;
-    uint8_t buff[PCIEMU_HW_DMA_AREA_SIZE];
+	DMAConfig config;
+	DMAStatus status;
+	uint8_t buff[PCIEMU_HW_DMA_AREA_SIZE];
 } DMAEngine;
 
 

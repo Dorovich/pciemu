@@ -24,15 +24,15 @@
  * @addr: Address to be masked
  */
 static inline dma_addr_t pciemu_dma_addr_mask(PCIEMUDevice *dev,
-                                              dma_addr_t addr)
+					dma_addr_t addr)
 {
-    dma_addr_t masked = addr & dev->dma.config.mask;
-    if (masked != addr) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "masked (%" PRIx64 ") != addr (%" PRIx64 ") \n", masked,
-                      addr);
-    }
-    return masked;
+	dma_addr_t masked = addr & dev->dma.config.mask;
+	if (masked != addr) {
+		qemu_log_mask(LOG_GUEST_ERROR,
+			"masked (%" PRIx64 ") != addr (%" PRIx64 ") \n", masked,
+			addr);
+	}
+	return masked;
 }
 
 /**
@@ -42,8 +42,8 @@ static inline dma_addr_t pciemu_dma_addr_mask(PCIEMUDevice *dev,
  */
 static inline bool pciemu_dma_inside_device_boundaries(dma_addr_t addr)
 {
-    return (PCIEMU_HW_DMA_AREA_START <= addr &&
-            addr <= PCIEMU_HW_DMA_AREA_START + PCIEMU_HW_DMA_AREA_SIZE);
+	return (PCIEMU_HW_DMA_AREA_START <= addr &&
+		addr <= PCIEMU_HW_DMA_AREA_START + PCIEMU_HW_DMA_AREA_SIZE);
 }
 
 /**
@@ -56,52 +56,52 @@ static inline bool pciemu_dma_inside_device_boundaries(dma_addr_t addr)
  */
 static void pciemu_dma_execute(PCIEMUDevice *dev)
 {
-    DMAEngine *dma = &dev->dma;
-    if (dma->config.cmd != PCIEMU_HW_DMA_DIRECTION_TO_DEVICE &&
-        dma->config.cmd != PCIEMU_HW_DMA_DIRECTION_FROM_DEVICE)
-        return;
-    if (dma->config.cmd == PCIEMU_HW_DMA_DIRECTION_TO_DEVICE) {
-        /* DMA_DIRECTION_TO_DEVICE
-         *   The transfer direction is RAM(or other device)->device.
-         *   The content in the bus address dma->config.txdesc.src, which points
-         *   to RAM memory (or other device memory), will be copied to address
-         *   dst inside the device.
-         *   dma->buff is the dedicated area inside the device to receive
-         *   DMA transfers. Thus, dst is basically the offset of dma->buff.
-         */
-        if (!pciemu_dma_inside_device_boundaries(dma->config.txdesc.dst)) {
-            qemu_log_mask(LOG_GUEST_ERROR, "dst register out of bounds \n");
-            return;
-        }
-        dma_addr_t src = pciemu_dma_addr_mask(dev, dma->config.txdesc.src);
-        dma_addr_t dst = dma->config.txdesc.dst - PCIEMU_HW_DMA_AREA_START;
-        int err = pci_dma_read(&dev->pci_dev, src, dma->buff + dst,
-                               dma->config.txdesc.len);
-        if (err) {
-            qemu_log_mask(LOG_GUEST_ERROR, "pci_dma_read err=%d\n", err);
-        }
-    } else {
-        /* DMA_DIRECTION_FROM_DEVICE
-         *   The transfer direction is device->RAM (or other device).
-         *   This means that the content in the src address inside the device
-         *   will be copied to the bus address dma->config.txdesc.dst, which
-         *   points to a RAM memory (or other device memory).
-         *   dma->buff is the dedicated area inside the device to receive
-         *   DMA transfers. Thus, src is basically the offset of dma->buff.
-         */
-        if (!pciemu_dma_inside_device_boundaries(dma->config.txdesc.src)) {
-            qemu_log_mask(LOG_GUEST_ERROR, "src register out of bounds \n");
-            return;
-        }
-        dma_addr_t src = dma->config.txdesc.src - PCIEMU_HW_DMA_AREA_START;
-        dma_addr_t dst = pciemu_dma_addr_mask(dev, dma->config.txdesc.dst);
-        int err = pci_dma_write(&dev->pci_dev, dst, dma->buff + src,
-                                dma->config.txdesc.len);
-        if (err) {
-            qemu_log_mask(LOG_GUEST_ERROR, "pci_dma_write err=%d\n", err);
-        }
-    }
-    pciemu_irq_raise(dev, PCIEMU_HW_IRQ_DMA_ENDED_VECTOR);
+	DMAEngine *dma = &dev->dma;
+	if (dma->config.cmd != PCIEMU_HW_DMA_DIRECTION_TO_DEVICE &&
+		dma->config.cmd != PCIEMU_HW_DMA_DIRECTION_FROM_DEVICE)
+		return;
+	if (dma->config.cmd == PCIEMU_HW_DMA_DIRECTION_TO_DEVICE) {
+		/* DMA_DIRECTION_TO_DEVICE
+		 *   The transfer direction is RAM(or other device)->device.
+		 *   The content in the bus address dma->config.txdesc.src, which points
+		 *   to RAM memory (or other device memory), will be copied to address
+		 *   dst inside the device.
+		 *   dma->buff is the dedicated area inside the device to receive
+		 *   DMA transfers. Thus, dst is basically the offset of dma->buff.
+		 */
+		if (!pciemu_dma_inside_device_boundaries(dma->config.txdesc.dst)) {
+			qemu_log_mask(LOG_GUEST_ERROR, "dst register out of bounds \n");
+			return;
+		}
+		dma_addr_t src = pciemu_dma_addr_mask(dev, dma->config.txdesc.src);
+		dma_addr_t dst = dma->config.txdesc.dst - PCIEMU_HW_DMA_AREA_START;
+		int err = pci_dma_read(&dev->pci_dev, src, dma->buff + dst,
+				dma->config.txdesc.len);
+		if (err) {
+			qemu_log_mask(LOG_GUEST_ERROR, "pci_dma_read err=%d\n", err);
+		}
+	} else {
+		/* DMA_DIRECTION_FROM_DEVICE
+		 *   The transfer direction is device->RAM (or other device).
+		 *   This means that the content in the src address inside the device
+		 *   will be copied to the bus address dma->config.txdesc.dst, which
+		 *   points to a RAM memory (or other device memory).
+		 *   dma->buff is the dedicated area inside the device to receive
+		 *   DMA transfers. Thus, src is basically the offset of dma->buff.
+		 */
+		if (!pciemu_dma_inside_device_boundaries(dma->config.txdesc.src)) {
+			qemu_log_mask(LOG_GUEST_ERROR, "src register out of bounds \n");
+			return;
+		}
+		dma_addr_t src = dma->config.txdesc.src - PCIEMU_HW_DMA_AREA_START;
+		dma_addr_t dst = pciemu_dma_addr_mask(dev, dma->config.txdesc.dst);
+		int err = pci_dma_write(&dev->pci_dev, dst, dma->buff + src,
+					dma->config.txdesc.len);
+		if (err) {
+			qemu_log_mask(LOG_GUEST_ERROR, "pci_dma_write err=%d\n", err);
+		}
+	}
+	pciemu_irq_raise(dev, PCIEMU_HW_IRQ_DMA_ENDED_VECTOR);
 }
 
 /* -----------------------------------------------------------------------------
@@ -121,9 +121,9 @@ static void pciemu_dma_execute(PCIEMUDevice *dev)
  */
 void pciemu_dma_config_txdesc_src(PCIEMUDevice *dev, dma_addr_t src)
 {
-    DMAStatus status = qatomic_read(&dev->dma.status);
-    if (status == DMA_STATUS_IDLE)
-        dev->dma.config.txdesc.src = src;
+	DMAStatus status = qatomic_read(&dev->dma.status);
+	if (status == DMA_STATUS_IDLE)
+		dev->dma.config.txdesc.src = src;
 }
 
 /**
@@ -138,9 +138,9 @@ void pciemu_dma_config_txdesc_src(PCIEMUDevice *dev, dma_addr_t src)
  */
 void pciemu_dma_config_txdesc_dst(PCIEMUDevice *dev, dma_addr_t dst)
 {
-    DMAStatus status = qatomic_read(&dev->dma.status);
-    if (status == DMA_STATUS_IDLE)
-        dev->dma.config.txdesc.dst = dst;
+	DMAStatus status = qatomic_read(&dev->dma.status);
+	if (status == DMA_STATUS_IDLE)
+		dev->dma.config.txdesc.dst = dst;
 }
 
 /**
@@ -153,9 +153,9 @@ void pciemu_dma_config_txdesc_dst(PCIEMUDevice *dev, dma_addr_t dst)
  */
 void pciemu_dma_config_txdesc_len(PCIEMUDevice *dev, dma_size_t size)
 {
-    DMAStatus status = qatomic_read(&dev->dma.status);
-    if (status == DMA_STATUS_IDLE)
-        dev->dma.config.txdesc.len = size;
+	DMAStatus status = qatomic_read(&dev->dma.status);
+	if (status == DMA_STATUS_IDLE)
+		dev->dma.config.txdesc.len = size;
 }
 
 /**
@@ -169,9 +169,9 @@ void pciemu_dma_config_txdesc_len(PCIEMUDevice *dev, dma_size_t size)
  */
 void pciemu_dma_config_cmd(PCIEMUDevice *dev, dma_cmd_t cmd)
 {
-    DMAStatus status = qatomic_read(&dev->dma.status);
-    if (status == DMA_STATUS_IDLE)
-        dev->dma.config.cmd = cmd;
+	DMAStatus status = qatomic_read(&dev->dma.status);
+	if (status == DMA_STATUS_IDLE)
+		dev->dma.config.cmd = cmd;
 }
 
 /**
@@ -186,18 +186,18 @@ void pciemu_dma_config_cmd(PCIEMUDevice *dev, dma_cmd_t cmd)
  */
 void pciemu_dma_doorbell_ring(PCIEMUDevice *dev)
 {
-    /* atomic access of dma.status may not be neeeded as the MMIO access
-     * will be normally serialized.
-     * Though not really necessary, it can show that we need to think of
-     * atomic accessing regions, especially if the device is a bit more
-     * complex.
-     */
-    DMAStatus status = qatomic_cmpxchg(&dev->dma.status, DMA_STATUS_IDLE,
-                                       DMA_STATUS_EXECUTING);
-    if (status == DMA_STATUS_EXECUTING)
-        return;
-    pciemu_dma_execute(dev);
-    qatomic_set(&dev->dma.status, DMA_STATUS_IDLE);
+	/* atomic access of dma.status may not be neeeded as the MMIO access
+	 * will be normally serialized.
+	 * Though not really necessary, it can show that we need to think of
+	 * atomic accessing regions, especially if the device is a bit more
+	 * complex.
+	 */
+	DMAStatus status = qatomic_cmpxchg(&dev->dma.status, DMA_STATUS_IDLE,
+					DMA_STATUS_EXECUTING);
+	if (status == DMA_STATUS_EXECUTING)
+		return;
+	pciemu_dma_execute(dev);
+	qatomic_set(&dev->dma.status, DMA_STATUS_IDLE);
 }
 
 /**
@@ -211,15 +211,15 @@ void pciemu_dma_doorbell_ring(PCIEMUDevice *dev)
  */
 void pciemu_dma_reset(PCIEMUDevice *dev)
 {
-    DMAEngine *dma = &dev->dma;
-    dma->status = DMA_STATUS_IDLE;
-    dma->config.txdesc.src = 0;
-    dma->config.txdesc.dst = 0;
-    dma->config.txdesc.len = 0;
-    dma->config.cmd = 0;
+	DMAEngine *dma = &dev->dma;
+	dma->status = DMA_STATUS_IDLE;
+	dma->config.txdesc.src = 0;
+	dma->config.txdesc.dst = 0;
+	dma->config.txdesc.len = 0;
+	dma->config.cmd = 0;
 
-    /* clear the internal buffer */
-    memset(dma->buff, 0, PCIEMU_HW_DMA_AREA_SIZE);
+	/* clear the internal buffer */
+	memset(dma->buff, 0, PCIEMU_HW_DMA_AREA_SIZE);
 }
 
 /**
@@ -234,11 +234,11 @@ void pciemu_dma_reset(PCIEMUDevice *dev)
  */
 void pciemu_dma_init(PCIEMUDevice *dev, Error **errp)
 {
-    /* Basically reset the DMA engine */
-    pciemu_dma_reset(dev);
+	/* Basically reset the DMA engine */
+	pciemu_dma_reset(dev);
 
-    /* and set the DMA mask, which does not change */
-    dev->dma.config.mask = DMA_BIT_MASK(PCIEMU_HW_DMA_ADDR_CAPABILITY);
+	/* and set the DMA mask, which does not change */
+	dev->dma.config.mask = DMA_BIT_MASK(PCIEMU_HW_DMA_ADDR_CAPABILITY);
 }
 
 
@@ -253,6 +253,6 @@ void pciemu_dma_init(PCIEMUDevice *dev, Error **errp)
  */
 void pciemu_dma_fini(PCIEMUDevice *dev)
 {
-    pciemu_dma_reset(dev);
-    dev->dma.status = DMA_STATUS_OFF;
+	pciemu_dma_reset(dev);
+	dev->dma.status = DMA_STATUS_OFF;
 }

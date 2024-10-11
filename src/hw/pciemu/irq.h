@@ -19,29 +19,29 @@ typedef struct PCIEMUDevice PCIEMUDevice;
 
 /* defines a single MSIVector */
 typedef struct MSIVector {
-    PCIEMUDevice *dev;
-    bool raised;
+	PCIEMUDevice *dev;
+	bool raised;
 } MSIVector;
 
 typedef struct IRQStatusMSI {
-    MSIVector msi_vectors[PCIEMU_IRQ_MAX_VECTORS];
+	MSIVector msi_vectors[PCIEMU_IRQ_MAX_VECTORS];
 } IRQStatusMSI;
 
 typedef struct IRQStatusPin {
-    /* our simple device has only one interrupt, a more complex one
-     * would require us to track in some way which event caused the
-     * interrupt. Thus, a bool type would not be appropriate.
-     * We would probably need to use a masked scheme .
-     */
-    bool raised;
+	/* our simple device has only one interrupt, a more complex one
+	 * would require us to track in some way which event caused the
+	 * interrupt. Thus, a bool type would not be appropriate.
+	 * We would probably need to use a masked scheme .
+	 */
+	bool raised;
 } IRQStatusPin;
 
 /* IRQ status -> either msi or pin is being used */
 typedef struct IRQStatus {
-    union {
-        IRQStatusMSI msi;
-        IRQStatusPin pin;
-    } status;
+	union {
+		IRQStatusMSI msi;
+		IRQStatusPin pin;
+	} status;
 } IRQStatus;
 
 void pciemu_irq_raise(PCIEMUDevice *dev, unsigned int vector);
