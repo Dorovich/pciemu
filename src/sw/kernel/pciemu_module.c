@@ -302,16 +302,18 @@ static void pciemu_module_exit(void)
 	pr_debug("pciemu_module_exit finished successfully\n");
 }
 
-static char *pciemu_devnode(struct device *dev, umode_t *mode)
+static char *pciemu_devnode(const struct device *dev, umode_t *mode)
 {
 	if (mode)
 		*mode = 0666;
 	return kasprintf(GFP_KERNEL, "pciemu/%s", dev_name(dev));
 }
+
 static int __init pciemu_module_init(void)
 {
 	int err;
-	pciemu_class = class_create(THIS_MODULE, "pciemu");
+	/* pciemu_class = class_create(THIS_MODULE, "pciemu"); */
+	pciemu_class = class_create("pciemu");
 	if (IS_ERR(pciemu_class)) {
 		pr_err("class_create error\n");
 		err = PTR_ERR(pciemu_class);
