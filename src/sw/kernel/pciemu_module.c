@@ -280,7 +280,7 @@ static void pciemu_remove(struct pci_dev *pdev)
 	pciemu_dev_clean(pciemu_dev);
 	pci_clear_master(pdev);
 	free_irq(pciemu_dev->irq.irq_num, pciemu_dev);
-	pci_free_irq_vectors(pdev);
+	/* pci_free_irq_vectors(pdev); */
 	pci_release_selected_regions(pdev,
 				     pci_select_bars(pdev, IORESOURCE_MEM));
 	pci_disable_device(pdev);
