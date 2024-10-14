@@ -38,7 +38,7 @@ static int pciemu_irq_enable_intx(struct pciemu_dev *pciemu_dev)
 			"pciemu_irq_dma_ended",
 			pciemu_dev);
 	if (err) {
-		return -EINVAL;
+		return err;
 	}
 
 	return 0;
