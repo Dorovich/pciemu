@@ -31,6 +31,7 @@ static int pciemu_irq_enable_intx(struct pciemu_dev *pciemu_dev)
 {
 	int err;
 
+	pciemu_dev->irq.irq_num = 0; /* INTA */
 	err = request_irq(pciemu_dev->irq.irq_num,
 			pciemu_irq_handler,
 			PCIEMU_HW_IRQ_DMA_ENDED_VECTOR,
