@@ -15,7 +15,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0");
-MODULE_DESCRIPTION("Kernel module to drive the pciemu virutal device");
+MODULE_DESCRIPTION("Kernel module to drive the pciemu virtual device");
 MODULE_AUTHOR("Luiz Henrique Suraty Filho <luiz-dev@suraty.com>");
 
 static struct class *pciemu_class;
@@ -139,7 +139,7 @@ static int pciemu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev_t dev_num;
 	struct device *dev;
 
-	/* Allocate the struct that will hold our device state/context*/
+	/* Allocate the struct that will hold our device state/context */
 	pciemu_dev = pciemu_alloc_dev();
 	if (pciemu_dev == NULL) {
 		err = -ENOMEM;

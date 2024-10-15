@@ -27,23 +27,23 @@ static irqreturn_t pciemu_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int pciemu_irq_enable_intx(struct pciemu_dev *pciemu_dev)
-{
-	int err;
+/* static int pciemu_irq_enable_intx(struct pciemu_dev *pciemu_dev) */
+/* { */
+/* 	int err; */
 
-	/* for (pciemu_dev->irq.irq_num = 0; pciemu_dev->irq.irq_num < 4) */
-	pciemu_dev->irq.irq_num = 0; /* INTA */
-	err = request_irq(pciemu_dev->irq.irq_num,
-			pciemu_irq_handler,
-			PCIEMU_HW_IRQ_DMA_ENDED_VECTOR,
-			"pciemu_irq_dma_ended",
-			pciemu_dev);
-	if (err) {
-		return err;
-	}
+/* 	/\* for (pciemu_dev->irq.irq_num = 0; pciemu_dev->irq.irq_num < 4) *\/ */
+/* 	pciemu_dev->irq.irq_num = 0; /\* INTA *\/ */
+/* 	err = request_irq(pciemu_dev->irq.irq_num, */
+/* 			pciemu_irq_handler, */
+/* 			PCIEMU_HW_IRQ_DMA_ENDED_VECTOR, */
+/* 			"pciemu_irq_dma_ended", */
+/* 			pciemu_dev); */
+/* 	if (err) { */
+/* 		return err; */
+/* 	} */
 
-	return 0;
-}
+/* 	return 0; */
+/* } */
 
 static int pciemu_irq_enable_msi(struct pciemu_dev *pciemu_dev)
 {
