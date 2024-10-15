@@ -31,6 +31,7 @@ static int pciemu_irq_enable_intx(struct pciemu_dev *pciemu_dev)
 {
 	int err;
 
+	/* for (pciemu_dev->irq.irq_num = 0; pciemu_dev->irq.irq_num < 4) */
 	pciemu_dev->irq.irq_num = 0; /* INTA */
 	err = request_irq(pciemu_dev->irq.irq_num,
 			pciemu_irq_handler,
@@ -102,6 +103,10 @@ static int pciemu_irq_enable_msi(struct pciemu_dev *pciemu_dev)
 
 int pciemu_irq_enable(struct pciemu_dev *pciemu_dev)
 {
-	/* return pciemu_irq_enable_msi(pciemu_dev); */
-	return pciemu_irq_enable_intx(pciemu_dev);
+	if (!pci_msi_enabled()) {
+		dev_err(&pciemu_dev->pdev->dev, "MSIs no están activadas\n");
+		return -1;
+	}
+	return pciemu_irq_enable_msi(pciemu_dev);
+	/* return pciemu_irq_enable_intx(pciemu_dev); */
 }
