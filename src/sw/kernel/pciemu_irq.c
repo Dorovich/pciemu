@@ -59,7 +59,9 @@ static int pciemu_irq_enable_msi(struct pciemu_dev *pciemu_dev)
 	dev_dbg(&pciemu_dev->pdev->dev,
 		"Trying to enable MSI, requesting %d vectors\n", msi_vecs_req);
 
-	msi_vecs = pci_alloc_irq_vectors(pciemu_dev->pdev, msi_vecs_req,
+	/* msi_vecs = pci_alloc_irq_vectors(pciemu_dev->pdev, msi_vecs_req,
+					 msi_vecs_req, PCI_IRQ_MSI); */
+	msi_vecs = pci_alloc_irq_vectors(pciemu_dev->pdev, 1,
 					 msi_vecs_req, PCI_IRQ_MSI);
 
 	if (msi_vecs < 0) {

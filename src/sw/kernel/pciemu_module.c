@@ -158,6 +158,9 @@ static int pciemu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_pci_enable;
 	}
 
+	/* Enable DMA (set the bus master bit in the PCI_COMMAND register) */
+	pci_set_master(pdev);
+
 	/* Set the DMA mask */
 	err = dma_set_mask_and_coherent(
 		&pdev->dev, DMA_BIT_MASK(PCIEMU_HW_DMA_ADDR_CAPABILITY));
@@ -165,9 +168,6 @@ static int pciemu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		dev_err(&(pdev->dev), "dma_set_mask_and_coherent\n");
 		goto err_dma_set_mask;
 	}
-
-	/* Enable DMA (set the bus master bit in the PCI_COMMAND register) */
-	pci_set_master(pdev);
 
 	/* verify no other device is already using the same address resource */
 	mem_bars = pci_select_bars(pdev, IORESOURCE_MEM);
