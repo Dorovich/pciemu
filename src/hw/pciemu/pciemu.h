@@ -14,6 +14,7 @@
 #include "pciemu_hw.h"
 #include "dma.h"
 #include "irq.h"
+#include "proxy.h"
 
 #define TYPE_PCIEMU_DEVICE "pciemu"
 #define PCIEMU_DEVICE_DESC "PCIEMU Device"
@@ -51,6 +52,9 @@ typedef struct PCIEMUDevice {
 
 	/* Registers in BAR0 */
 	uint64_t reg[PCIEMU_HW_BAR0_REG_CNT];
+
+	/* Proxy socket */
+	int pciemu_proxy_socket;
 } PCIEMUDevice;
 
 #endif /* PCIEMU_H */

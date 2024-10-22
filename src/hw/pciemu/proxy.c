@@ -4,9 +4,14 @@
  *
  */
 
-#include <unistd.h>
-#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 #include "proxy.h"
+
+/* TODO info:
+ * https://systemprogrammingatntu.github.io/mp2/unix_socket.html
+ *
+ * */
 
 /* -----------------------------------------------------------------------------
  *  Public
@@ -20,10 +25,10 @@ void pciemu_proxy_reset(PCIEMUDevice *dev)
 
 void pciemu_proxy_init(PCIEMUDevice *dev, Error **errp)
 {
-	int fd = open("qemu-test.txt", O_CREAT|O_TRUNC|O_RDWR, 0666);
-	const char *msg = "¡Hola desde QEMU!\n";
-	write(fd, msg, sizeof(msg));
-	close(fd);
+	/* comprobar que el socket no exista */
+	/* ... */
+
+	dev->pciemu_proxy_socket = socket(AF_LOCAL, SOCK_STREAM, 0);
 }
 
 void pciemu_proxy_fini(PCIEMUDevice *dev)
