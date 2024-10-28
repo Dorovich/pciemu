@@ -1,17 +1,38 @@
-/* proxy.c - External acess to PCIEMU device memory
+/* proxy.c - External access to PCIEMU device memory
  *
  * Author: Dorovich (David Cañadas López)
  *
  */
 
-#include <sys/types.h>
-#include <sys/socket.h>
+#include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include "proxy.h"
+#include "pciemu.h"
+#include "sysemu/sysemu.h"
+#include "qemu/main-loop.h"
 
-/* TODO info:
- * https://systemprogrammingatntu.github.io/mp2/unix_socket.html
- *
- * */
+/* -----------------------------------------------------------------------------
+ *  Private
+ * -----------------------------------------------------------------------------
+ */
+
+static QEMUBH *pciemu_proxy_reset_bh;
+
+static void pciemu_proxy_bh_handler (void *opaque)
+{
+	qmp_system_reset(NULL); /* ver qemu/ui/gtk.c, línea 1313 */
+}
+
+void *pciemu_proxy_socket_routine (void *opaque)
+{
+	/* PCIEMUDevice *dev = opaque; */
+
+	sleep(40);
+	qemu_bh_schedule(pciemu_proxy_reset_bh);
+
+	pthread_exit(NULL);
+}
 
 /* -----------------------------------------------------------------------------
  *  Public
@@ -25,10 +46,22 @@ void pciemu_proxy_reset(PCIEMUDevice *dev)
 
 void pciemu_proxy_init(PCIEMUDevice *dev, Error **errp)
 {
-	/* comprobar que el socket no exista */
-	/* ... */
+	int ret;
 
-	dev->pciemu_proxy_socket = socket(AF_LOCAL, SOCK_STREAM, 0);
+	pciemu_proxy_reset_bh = qemu_bh_new(pciemu_proxy_bh_handler, NULL);
+
+	ret = pthread_create(&dev->proxy.proxy_thread, NULL,
+			pciemu_proxy_socket_routine, dev);
+	if (ret < 0) {
+		perror("pthread_create");
+		return;
+	}
+	
+	ret = pthread_detach(dev->proxy.proxy_thread);
+	if (ret < 0) {
+		perror("pthread_detach");
+		return;
+	}
 }
 
 void pciemu_proxy_fini(PCIEMUDevice *dev)
