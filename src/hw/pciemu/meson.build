@@ -4,6 +4,7 @@ pciemu_ss.add(files(
     'irq.c',
     'mmio.c',
     'pciemu.c',
+    'proxy.c',
 ))
 
 system_ss.add_all(when: 'CONFIG_PCIEMU', if_true: pciemu_ss)
