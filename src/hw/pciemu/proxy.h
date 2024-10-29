@@ -7,13 +7,20 @@
 #define PCIEMU_PROXY_H
 
 #include <pthread.h>
+#include <sys/socket.h>
 #include "qemu/typedefs.h"
+
+#define PCIEMU_PROXY_HOST "localhost"
+#define PCIEMU_PROXY_PORT 8182
+#define PCIEMU_PROXY_MAXQ 10
 
 /* Forward declaration */
 typedef struct PCIEMUDevice PCIEMUDevice;
 
 struct pciemu_proxy {
 	pthread_t proxy_thread;
+	struct sockaddr_in addr;
+	int sockd;
 };
 
 void pciemu_proxy_reset(PCIEMUDevice *dev);
