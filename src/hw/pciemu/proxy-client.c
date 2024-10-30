@@ -2,6 +2,7 @@
  *
  * Author: Dorovich (David Cañadas López)
  *
+ * Compile with: gcc proxy-client.c -o proxy-client -I ../../../qemu/include
  */
 
 #include <netdb.h>
