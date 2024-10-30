@@ -4,21 +4,22 @@
  *
  */
 
-/* #include <fcntl.h> */
+#include "pciemu.h"
+#include "proxy.h"
+#include "qemu/main-loop.h"
+#include "sysemu/sysemu.h"
 #include <netdb.h>
 #include <netinet/in.h>
 #include <string.h>
-/* #include <sys/socket.h> */
+#include <sys/socket.h>
 #include <unistd.h>
-#include "proxy.h"
-#include "pciemu.h"
-#include "sysemu/sysemu.h"
-#include "qemu/main-loop.h"
 
 /* -----------------------------------------------------------------------------
  *  Private
  * -----------------------------------------------------------------------------
  */
+
+void qmp_system_reset(void *reason); /* forward declaration */
 
 static QEMUBH *pciemu_proxy_reset_bh;
 
@@ -27,51 +28,68 @@ static void pciemu_proxy_bh_handler (void *opaque)
 	qmp_system_reset(NULL); /* ver qemu/ui/gtk.c, línea 1313 */
 }
 
-void *pciemu_proxy_socket_routine (void *opaque)
+static void *pciemu_proxy_server_routine (void *opaque)
 {
-	int con, len, loop, ret;
+	int con, loop, ret;
+	size_t msg_size;
+	socklen_t len;
+	char *msg;
 	struct sockaddr_in src;
 
 	PCIEMUDevice *dev = opaque;
-
 	len = sizeof(src);
+	msg_size = PCIEMU_PROXY_BUFF;
+	msg = (char *)malloc(msg_size*sizeof(char));
+
 	while (1) {
 		con = accept(dev->proxy.sockd, (struct sockaddr *)&src, &len);
 		if (con < 0) {
 			perror("accept");
-			goto socket_routine_accept_err;
+			goto server_accept_err;
 		}
 
-		char msg[1024];
+		/* char msg[1024]; */
+		bzero(msg, PCIEMU_PROXY_BUFF);
 		loop = 1;
 		while (loop) {
-			ret = recv(con, msg, sizeof(msg), 0);
+			ret = recv(con, msg, msg_size*sizeof(char), 0);
 			if (ret < 0) {
 				perror("recv");
-				goto socket_routine_msg_err;
+				goto server_msg_err;
 			}
-			if (!strcmp(msg, "reset")) {
+			/* check command */
+			if (!strncmp(msg, "ping\n", ret)) {
+				ret = sprintf(msg, "pong\n");
+			}
+			else if (!strncmp(msg, "reset\n", ret)) {
 				qemu_bh_schedule(pciemu_proxy_reset_bh);
+				ret = sprintf(msg, "resetting\n");
 			}
-			else if (!strcmp(msg, "quit")) {
+			else if (!strncmp(msg, "quit\n", ret)) {
 				loop = 0;
+				ret = sprintf(msg, "bye\n");
 			}
 			else {
-				/* echo message */
-				ret = send(con, msg, strlen(msg), 0);
-				if (ret < 0) {
-					perror("send");
-					goto socket_routine_msg_err;
-				}
+				ret = sprintf(msg, "?\n");
+			}
+			ret = send(con, msg, ret, 0);
+			if (ret < 0) {
+				perror("send");
+				goto server_msg_err;
 			}
 		}
 		
 		close(con);
 	}	
 
-socket_routine_msg_err:
-	if (con) close(con);
-socket_routine_accept_err:
+server_msg_err:
+	if (msg)
+		free(msg);
+	if (con)
+		close(con);
+	if (dev->proxy.sockd)
+		close(dev->proxy.sockd);
+server_accept_err:
 	pthread_exit(NULL);
 }
 
@@ -89,6 +107,8 @@ void pciemu_proxy_init(PCIEMUDevice *dev, Error **errp)
 {
 	int ret;
 	struct hostent *h;
+
+	pciemu_proxy_reset_bh = qemu_bh_new(pciemu_proxy_bh_handler, NULL);
 
 	/* Inicializar socket */
 
@@ -124,10 +144,8 @@ void pciemu_proxy_init(PCIEMUDevice *dev, Error **errp)
 
 	/* Inicializar thread */
 
-	pciemu_proxy_reset_bh = qemu_bh_new(pciemu_proxy_bh_handler, NULL);
-
 	ret = pthread_create(&dev->proxy.proxy_thread, NULL,
-			pciemu_proxy_socket_routine, dev);
+			pciemu_proxy_server_routine, dev);
 	if (ret < 0) {
 		perror("pthread_create");
 		return;

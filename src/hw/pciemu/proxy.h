@@ -13,6 +13,7 @@
 #define PCIEMU_PROXY_HOST "localhost"
 #define PCIEMU_PROXY_PORT 8182
 #define PCIEMU_PROXY_MAXQ 10
+#define PCIEMU_PROXY_BUFF 1024
 
 /* Forward declaration */
 typedef struct PCIEMUDevice PCIEMUDevice;

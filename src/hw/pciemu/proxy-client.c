@@ -22,7 +22,8 @@
 
 int main (int argc, char *argv[])
 {
-	int srv, loop, ret, msg_size;
+	int srv, loop, ret;
+	size_t msg_size;
 	char *msg;
 	struct sockaddr_in addr;
 	struct hostent *h;
@@ -41,16 +42,27 @@ int main (int argc, char *argv[])
 	ret = connect(srv, (struct sockaddr *)&addr, sizeof(addr));
 	CHECK(ret < 0, "connect");
 
+	printf("Connected to PCIEMU proxy!\n");
+
 	msg_size = 1024;
 	msg = (char *)malloc(msg_size * sizeof(char));
 	loop = 1;
 	while (loop) {
-		ret = getline(&msg, &n, stdin);
+		ret = getline(&msg, &msg_size, stdin);
 		CHECK(ret < 0, "getline");
 		ret = send(srv, msg, strlen(msg), 0);
 		CHECK(ret < 0, "send");
-		/* TODO acabar el bucle */
+		ret = recv(srv, msg, msg_size*sizeof(char), 0);
+		CHECK(ret < 0, "recv");
+		if (ret) {
+			ret = write(1, msg, ret);
+			CHECK(ret < 0, "write");
+		}
+		else loop = 0;
 	}
+
+	free(msg);
+	close(srv);
 
 	return 0;
 
