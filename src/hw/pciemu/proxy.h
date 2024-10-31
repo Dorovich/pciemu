@@ -22,6 +22,7 @@ struct pciemu_proxy {
 	pthread_t proxy_thread;
 	struct sockaddr_in addr;
 	int sockd;
+	int server_role;
 };
 
 void pciemu_proxy_reset(PCIEMUDevice *dev);

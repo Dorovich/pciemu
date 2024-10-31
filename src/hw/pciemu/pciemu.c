@@ -14,13 +14,13 @@
  *
  */
 
-#include "pciemu.h"
-#include "pciemu_hw.h"
 #include "dma.h"
 #include "irq.h"
 #include "mmio.h"
-
+#include "pciemu.h"
+#include "pciemu_hw.h"
 #include "proxy.h"
+#include "qom/object.h"
 
 /* -----------------------------------------------------------------------------
  *  Internal functions
@@ -129,6 +129,18 @@ static void pciemu_class_init(ObjectClass *klass, void *class_data)
 	device_class->reset = pciemu_device_reset;
 }
 
+/**
+ * pciemu_instance_init: Inicialización de una instancia
+ */
+static void pciemu_instance_init(Object *obj)
+{
+	PCIEMUDevice *dev = PCIEMU(obj);
+
+	dev->proxy.server_role = 1;
+	object_property_add_bool(dev, "server_role",&dev->proxy.server_role,
+				OBJ_PROP_FLAG_READWRITE);
+}
+
 /* -----------------------------------------------------------------------------
  *  Declaration, definition and registration of type information
  * -----------------------------------------------------------------------------
@@ -153,6 +165,7 @@ static const TypeInfo pciemu_info = {
 	.name = TYPE_PCIEMU_DEVICE,
 	.parent = TYPE_PCI_DEVICE,
 	.instance_size = sizeof(PCIEMUDevice),
+	.instance_init = pciemu_instance_init,
 	.class_init = pciemu_class_init,
 	.interfaces =
         (InterfaceInfo[]){

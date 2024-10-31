@@ -28,18 +28,55 @@ static void pciemu_proxy_bh_handler (void *opaque)
 	qmp_system_reset(NULL); /* ver qemu/ui/gtk.c, línea 1313 */
 }
 
+int pciemu_proxy_handle_client(int con, const char *cmd_buf)
+{
+	int ret, loop;
+
+	bzero(cmd_buf, PCIEMU_PROXY_BUFF);
+	loop = 1;
+	while (loop) {
+		ret = recv(con, cmd_buf, PCIEMU_PROXY_BUFF*sizeof(char), 0);
+		if (ret < 0) {
+			perror("recv");
+			goto server_msg_err;
+		}
+		if (!strncmp(cmd_buf, "ping\n", ret)) {
+			ret = sprintf(cmd_buf, "pong\n");
+		}
+		else if (!strncmp(cmd_buf, "reset\n", ret)) {
+			qemu_bh_schedule(pciemu_proxy_reset_bh);
+			ret = sprintf(cmd_buf, "resetting\n");
+		}
+		else if (!strncmp(cmd_buf, "quit\n", ret)) {
+			loop = 0;
+			ret = sprintf(cmd_buf, "bye\n");
+		}
+		else {
+			ret = sprintf(cmd_buf, "?\n");
+		}
+		ret = send(con, cmd_buf, ret, 0);
+		if (ret < 0) {
+			perror("send");
+			goto server_msg_err;
+		}
+	}
+	close(con);
+
+	return 0;
+server_msg_err:
+	return -1;
+}
+
 static void *pciemu_proxy_server_routine (void *opaque)
 {
-	int con, loop, ret;
-	size_t msg_size;
+	int con, ret;
 	socklen_t len;
 	char *msg;
 	struct sockaddr_in src;
 
 	PCIEMUDevice *dev = opaque;
 	len = sizeof(src);
-	msg_size = PCIEMU_PROXY_BUFF;
-	msg = (char *)malloc(msg_size*sizeof(char));
+	msg = malloc(PCIEMU_PROXY_BUFF*sizeof(char));
 
 	while (1) {
 		con = accept(dev->proxy.sockd, (struct sockaddr *)&src, &len);
@@ -47,42 +84,12 @@ static void *pciemu_proxy_server_routine (void *opaque)
 			perror("accept");
 			goto server_accept_err;
 		}
+		ret = pciemu_proxy_handle_client(con, msg, ret);
+		if (ret < 0)
+			goto server_handle_err;
+	}
 
-		/* char msg[1024]; */
-		bzero(msg, PCIEMU_PROXY_BUFF);
-		loop = 1;
-		while (loop) {
-			ret = recv(con, msg, msg_size*sizeof(char), 0);
-			if (ret < 0) {
-				perror("recv");
-				goto server_msg_err;
-			}
-			/* check command */
-			if (!strncmp(msg, "ping\n", ret)) {
-				ret = sprintf(msg, "pong\n");
-			}
-			else if (!strncmp(msg, "reset\n", ret)) {
-				qemu_bh_schedule(pciemu_proxy_reset_bh);
-				ret = sprintf(msg, "resetting\n");
-			}
-			else if (!strncmp(msg, "quit\n", ret)) {
-				loop = 0;
-				ret = sprintf(msg, "bye\n");
-			}
-			else {
-				ret = sprintf(msg, "?\n");
-			}
-			ret = send(con, msg, ret, 0);
-			if (ret < 0) {
-				perror("send");
-				goto server_msg_err;
-			}
-		}
-		
-		close(con);
-	}	
-
-server_msg_err:
+server_handle_err:
 	if (msg)
 		free(msg);
 	if (con)
@@ -136,6 +143,16 @@ void pciemu_proxy_init(PCIEMUDevice *dev, Error **errp)
 		return;
 	}
 
+	/*
+	 * TODO: Ya he puesto el booleano, "server_role" en PCIEMUDevice,
+	 * por lo que solo falta inicializar el socket en modo servidor (1)
+	 * o cliente (0) en función del valor de ese campo.
+	 *
+	 * También se puede pasar el valor inicial por la línea de comandos
+	 * con "-device pciemu,server_role=x" (ver pciemu_instance_init,
+	 * en pciemu.c)
+	 */
+
 	ret = listen(dev->proxy.sockd, PCIEMU_PROXY_MAXQ);
 	if (ret < 0) {
 		perror("listen");
@@ -150,7 +167,7 @@ void pciemu_proxy_init(PCIEMUDevice *dev, Error **errp)
 		perror("pthread_create");
 		return;
 	}
-	
+
 	ret = pthread_detach(dev->proxy.proxy_thread);
 	if (ret < 0) {
 		perror("pthread_detach");
