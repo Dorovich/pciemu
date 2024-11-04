@@ -84,7 +84,7 @@ static void *pciemu_proxy_server_routine (void *opaque)
 			perror("accept");
 			goto server_accept_err;
 		}
-		ret = pciemu_proxy_handle_client(con, msg, ret);
+		ret = pciemu_proxy_handle_client(con, msg);
 		if (ret < 0)
 			goto server_handle_err;
 	}
@@ -100,10 +100,151 @@ server_accept_err:
 	pthread_exit(NULL);
 }
 
+static void *pciemu_proxy_client_routine (void *opaque)
+{
+	int ret;
+	size_t msg_size;
+	char *msg;
+
+	PCIEMUDevice *dev = opaque;
+	msg_size = PCIEMU_PROXY_BUFF*sizeof(char);
+	msg = malloc(msg_size);
+
+	ret = connect(dev->proxy.sockd, (struct sockaddr *)&dev->proxy.addr,
+		sizeof(dev->proxy.addr));
+	if (ret < 0) {
+		perror("connect");
+		goto client_connect_err;
+	}
+
+	printf("Connected to PCIEMU proxy!\n");
+
+	/* ping - pong */
+
+	ret = sprintf(msg, "ping\n");
+	ret = send(dev->proxy.sockd, msg, ret, 0);
+	if (ret < 0) {
+		perror("send");
+		goto client_handle_err;
+	}
+
+	ret = recv(dev->proxy.sockd, msg, msg_size, 0);
+	if (ret < 0) {
+		perror("recv");
+		goto client_handle_err;
+	}
+
+	ret = write(1, msg, ret);
+	if (ret < 0) {
+		perror("write");
+		goto client_write_err;
+
+	/* quit - bye */
+
+	ret = sprintf(msg, "quit\n");
+	ret = send(dev->proxy.sockd, msg, ret, 0);
+	if (ret < 0) {
+		perror("send");
+		goto client_handle_err;
+	}
+
+	ret = recv(dev->proxy.sockd, msg, msg_size, 0);
+	if (ret < 0) {
+		perror("recv");
+		goto client_handle_err;
+	}
+
+	ret = write(1, msg, ret);
+	if (ret < 0) {
+		perror("write");
+		goto client_write_err;
+	}
+}
+
+client_handle_err:
+client_write_err:
+	if (msg)
+		free(msg);
+	if (dev->proxy.sockd)
+		close(dev->proxy.sockd);
+client_connect_err:
+	pthread_exit(NULL);
+}
+
+void pciemu_proxy_init_server(PCIEMUDevice *dev)
+{
+	int ret;
+
+	/* Configurar socket */
+
+	ret = bind(dev->proxy.sockd, (struct sockaddr *)&dev->proxy.addr,
+			sizeof(dev->proxy.addr));
+	if (ret < 0) {
+		perror("bind");
+		return;
+	}
+
+	ret = listen(dev->proxy.sockd, PCIEMU_PROXY_MAXQ);
+	if (ret < 0) {
+		perror("listen");
+		return;
+	}
+
+	/* Inicializar thread */
+
+	ret = pthread_create(&dev->proxy.proxy_thread, NULL,
+			pciemu_proxy_server_routine, dev);
+	if (ret < 0) {
+		perror("pthread_create");
+		return;
+	}
+
+	ret = pthread_detach(dev->proxy.proxy_thread);
+	if (ret < 0) {
+		perror("pthread_detach");
+		return;
+	}
+}
+
+void pciemu_proxy_init_client(PCIEMUDevice *dev)
+{
+	int ret;
+
+	/* Configurar socket (nada a hacer) */
+
+	/* Inicializar thread */
+
+	ret = pthread_create(&dev->proxy.proxy_thread, NULL,
+			pciemu_proxy_client_routine, dev);
+	if (ret < 0) {
+		perror("pthread_create");
+		return;
+	}
+
+	ret = pthread_detach(dev->proxy.proxy_thread);
+	if (ret < 0) {
+		perror("pthread_detach");
+		return;
+	}
+}
+
+
 /* -----------------------------------------------------------------------------
  *  Public
  * -----------------------------------------------------------------------------
  */
+
+bool pciemu_proxy_get_mode(Object *obj, Error **errp)
+{
+	PCIEMUDevice *dev = PCIEMU(obj);
+	return dev->proxy.server_mode;
+}
+
+void pciemu_proxy_set_mode(Object *obj, bool mode, Error **errp)
+{
+	PCIEMUDevice *dev = PCIEMU(obj);
+	dev->proxy.server_mode = mode;
+}
 
 void pciemu_proxy_reset(PCIEMUDevice *dev)
 {
@@ -112,7 +253,6 @@ void pciemu_proxy_reset(PCIEMUDevice *dev)
 
 void pciemu_proxy_init(PCIEMUDevice *dev, Error **errp)
 {
-	int ret;
 	struct hostent *h;
 
 	pciemu_proxy_reset_bh = qemu_bh_new(pciemu_proxy_bh_handler, NULL);
@@ -136,43 +276,18 @@ void pciemu_proxy_init(PCIEMUDevice *dev, Error **errp)
 	dev->proxy.addr.sin_port = htons(PCIEMU_PROXY_PORT);
 	dev->proxy.addr.sin_addr.s_addr = *(in_addr_t *)h->h_addr_list[0];
 
-	ret = bind(dev->proxy.sockd, (struct sockaddr *)&dev->proxy.addr,
-			sizeof(dev->proxy.addr));
-	if (ret < 0) {
-		perror("bind");
-		return;
-	}
-
 	/*
-	 * TODO: Ya he puesto el booleano, "server_role" en PCIEMUDevice,
-	 * por lo que solo falta inicializar el socket en modo servidor (1)
-	 * o cliente (0) en función del valor de ese campo.
-	 *
-	 * También se puede pasar el valor inicial por la línea de comandos
-	 * con "-device pciemu,server_role=x" (ver pciemu_instance_init,
+	 * Hay un nuevo booleano, "server_mode", en PCIEMUDevice.
+	 * Se puede pasar su valor inicial por la línea de comandos
+	 * con "-device pciemu,server_mode=x" (ver pciemu_instance_init,
 	 * en pciemu.c)
 	 */
 
-	ret = listen(dev->proxy.sockd, PCIEMU_PROXY_MAXQ);
-	if (ret < 0) {
-		perror("listen");
-		return;
-	}
+	if (dev->proxy.server_mode)
+		pciemu_proxy_init_server(dev);
+	else
+		pciemu_proxy_init_client(dev);
 
-	/* Inicializar thread */
-
-	ret = pthread_create(&dev->proxy.proxy_thread, NULL,
-			pciemu_proxy_server_routine, dev);
-	if (ret < 0) {
-		perror("pthread_create");
-		return;
-	}
-
-	ret = pthread_detach(dev->proxy.proxy_thread);
-	if (ret < 0) {
-		perror("pthread_detach");
-		return;
-	}
 }
 
 void pciemu_proxy_fini(PCIEMUDevice *dev)

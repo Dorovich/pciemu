@@ -136,9 +136,9 @@ static void pciemu_instance_init(Object *obj)
 {
 	PCIEMUDevice *dev = PCIEMU(obj);
 
-	dev->proxy.server_role = 1;
-	object_property_add_bool(dev, "server_role",&dev->proxy.server_role,
-				OBJ_PROP_FLAG_READWRITE);
+	dev->proxy.server_mode = true;
+	object_property_add_bool(obj, "server_mode", pciemu_proxy_get_mode,
+				pciemu_proxy_set_mode);
 }
 
 /* -----------------------------------------------------------------------------

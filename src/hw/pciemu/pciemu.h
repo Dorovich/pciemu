@@ -25,6 +25,8 @@
  */
 OBJECT_DECLARE_TYPE(PCIEMUDevice, PCIEMUDeviceClass, PCIEMU_DEVICE);
 
+DECLARE_INSTANCE_CHECKER(PCIEMUDevice, PCIEMU, TYPE_PCIEMU_DEVICE);
+
 /* Struct that defines our class
  */
 typedef struct PCIEMUDeviceClass {

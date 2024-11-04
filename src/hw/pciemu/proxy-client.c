@@ -31,7 +31,7 @@ int main (int argc, char *argv[])
 
 	h = gethostbyname(PCIEMU_PROXY_HOST);
 	CHECK(h == NULL, "gethostname");
-	
+
 	bzero(&addr, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(PCIEMU_PROXY_PORT);
@@ -46,7 +46,7 @@ int main (int argc, char *argv[])
 	printf("Connected to PCIEMU proxy!\n");
 
 	msg_size = 1024;
-	msg = (char *)malloc(msg_size * sizeof(char));
+	msg = malloc(msg_size*sizeof(char));
 	loop = 1;
 	while (loop) {
 		ret = getline(&msg, &msg_size, stdin);
