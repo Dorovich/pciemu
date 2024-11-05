@@ -16,6 +16,15 @@
 #define PCIEMU_PROXY_MAXQ 10
 #define PCIEMU_PROXY_BUFF 1024
 
+typedef unsigned int ProxyRequest;
+
+#define PCIEMU_REQ_ACK 0x01
+#define PCIEMU_REQ_PING 0x02
+#define PCIEMU_REQ_PONG 0x03
+#define PCIEMU_REQ_RESET 0x04
+#define PCIEMU_REQ_QUIT 0x05
+#define PCIEMU_REQ_WHAT 0x06
+
 /* Forward declaration */
 typedef struct PCIEMUDevice PCIEMUDevice;
 
