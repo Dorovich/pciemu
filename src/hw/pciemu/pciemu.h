@@ -56,7 +56,7 @@ typedef struct PCIEMUDevice {
 	uint64_t reg[PCIEMU_HW_BAR0_REG_CNT];
 
 	/* Proxy thread information */
-	struct pciemu_proxy proxy;
+	PCIEMUProxy proxy;
 } PCIEMUDevice;
 
 #endif /* PCIEMU_H */

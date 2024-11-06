@@ -8,6 +8,7 @@
 
 #include <pthread.h>
 #include <sys/socket.h>
+#include <sys/queue.h>
 #include "qemu/typedefs.h"
 #include "qapi/qmp/qbool.h"
 
@@ -15,8 +16,6 @@
 #define PCIEMU_PROXY_PORT 8987
 #define PCIEMU_PROXY_MAXQ 10
 #define PCIEMU_PROXY_BUFF 1024
-
-typedef unsigned int ProxyRequest;
 
 #define PCIEMU_REQ_NONE 0x00
 #define PCIEMU_REQ_ACK 0x01
@@ -36,22 +35,32 @@ typedef unsigned int ProxyRequest;
 /* Forward declaration */
 typedef struct PCIEMUDevice PCIEMUDevice;
 
+typedef unsigned int ProxyRequest;
+
+struct pciemu_proxy_req_entry {
+	ProxyRequest req;
+	TAILQ_ENTRY(pciemu_proxy_req_entry) entries;
+};
+
 struct pciemu_proxy {
 	pthread_t proxy_thread;
 	struct sockaddr_in addr;
 	int sockd;
 	bool server_mode;
 	uint8_t *tmp_buff;
+	TAILQ_HEAD(tailhead, pciemu_proxy_req_entry) req_head;
 };
 
+typedef struct pciemu_proxy PCIEMUProxy;
+
 void pciemu_proxy_reset(PCIEMUDevice *dev);
-
 void pciemu_proxy_init(PCIEMUDevice *dev, Error **errp);
-
 void pciemu_proxy_fini(PCIEMUDevice *dev);
 
 bool pciemu_proxy_get_mode(Object *obj, Error **errp);
-
 void pciemu_proxy_set_mode(Object *obj, bool mode, Error **errp);
+
+void pciemu_proxy_push_req(PCIEMUDevice *dev, ProxyRequest req);
+ProxyRequest pciemu_proxy_pop_req(PCIEMUDevice *dev);
 
 #endif /* PCIEMU_PROXY_H */
