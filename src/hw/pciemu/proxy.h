@@ -23,10 +23,9 @@
 #define PCIEMU_REQ_PONG 0x03
 #define PCIEMU_REQ_RESET 0x04
 #define PCIEMU_REQ_QUIT 0x05
-#define PCIEMU_REQ_WHAT 0x06
-#define PCIEMU_REQ_INTA 0x07
-#define PCIEMU_REQ_SYNC 0x08 /* this <- other */
-#define PCIEMU_REQ_SYNCME 0x09 /* this -> other */
+#define PCIEMU_REQ_INTA 0x06
+#define PCIEMU_REQ_SYNC 0x07 /* this <- other */
+#define PCIEMU_REQ_SYNCME 0x08 /* this -> other */
 
 #define PCIEMU_HANDLE_FAILURE -1
 #define PCIEMU_HANDLE_SUCCESS 0
@@ -42,13 +41,15 @@ struct pciemu_proxy_req_entry {
 	TAILQ_ENTRY(pciemu_proxy_req_entry) entries;
 };
 
+TAILQ_HEAD(pciemu_proxy_req_head, pciemu_proxy_req_entry);
+
 struct pciemu_proxy {
 	pthread_t proxy_thread;
 	struct sockaddr_in addr;
 	int sockd;
 	bool server_mode;
 	uint8_t *tmp_buff;
-	TAILQ_HEAD(tailhead, pciemu_proxy_req_entry) req_head;
+	struct pciemu_proxy_req_head req_head;
 };
 
 typedef struct pciemu_proxy PCIEMUProxy;
@@ -60,7 +61,7 @@ void pciemu_proxy_fini(PCIEMUDevice *dev);
 bool pciemu_proxy_get_mode(Object *obj, Error **errp);
 void pciemu_proxy_set_mode(Object *obj, bool mode, Error **errp);
 
-void pciemu_proxy_push_req(PCIEMUDevice *dev, ProxyRequest req);
+int pciemu_proxy_push_req(PCIEMUDevice *dev, ProxyRequest req);
 ProxyRequest pciemu_proxy_pop_req(PCIEMUDevice *dev);
 
 #endif /* PCIEMU_PROXY_H */
