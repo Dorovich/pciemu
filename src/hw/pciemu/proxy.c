@@ -220,26 +220,26 @@ int pciemu_proxy_handle_connection(PCIEMUDevice *dev, int con)
 	fd_set fds;
 	struct timeval timeout;
 
+	FD_ZERO(&fds);
+	bzero(&timeout, sizeof(timeout));
+	ret = PCIEMU_HANDLE_SUCCESS;
+
 	/* Comprobar peticiones */
 
-	FD_ZERO(&fds);
-
-	timeout.tv_sec = 0;
-	timeout.tv_usec = 0;
-
-	ret = PCIEMU_HANDLE_SUCCESS;
 	do {
 		FD_SET(con, &fds);
 		rret = select(con+1, &fds, NULL, NULL, &timeout);
 		if (rret && FD_ISSET(con, &fds)) {
 			recv(con, &req, sizeof(req), MSG_WAITALL);
-			printf("Debug: Found a request on socket (%X)\n", req);
+			printf("Debug: Found a request on socket (%X)...", req);
 			ret = pciemu_proxy_handle_req(dev, con, req);
+			printf(" handled!\n");
 		}
 		else if (!TAILQ_EMPTY(&dev->proxy.req_head)) {
 			req = pciemu_proxy_pop_req(dev);
-			printf("Debug: Popped a request on queue (%X)\n", req);
+			printf("Debug: Popped a request on queue (%X)...", req);
 			ret = pciemu_proxy_issue_req(dev, con, req);
+			printf(" issued!\n");
 		}
 	} while (ret == PCIEMU_HANDLE_SUCCESS);
 
@@ -266,6 +266,7 @@ static void *pciemu_proxy_server_routine (void *opaque)
 			perror("accept");
 			goto server_accept_err;
 		}
+		printf("\nDebug: New client connected\n");
 		ret = pciemu_proxy_handle_connection(dev, con);
 	} while (ret != PCIEMU_HANDLE_FAILURE);
 
@@ -324,7 +325,7 @@ static void *pciemu_proxy_client_routine (void *opaque)
 		perror("connect");
 		goto client_connect_err;
 	}
-	printf("Debug: Connected to PCIEMU proxy\n");
+	printf("\nDebug: Connected to PCIEMU proxy server\n");
 	pciemu_proxy_handle_connection(dev, dev->proxy.sockd);
 
 client_connect_err:
