@@ -389,8 +389,8 @@ void pciemu_proxy_init_client(PCIEMUDevice *dev)
 	/* Peticiones de muestra */
 
 	pciemu_proxy_push_req(dev, PCIEMU_REQ_PING);
-	pciemu_proxy_push_req(dev, PCIEMU_REQ_SYNC);
-	pciemu_proxy_push_req(dev, PCIEMU_REQ_QUIT);
+	/* pciemu_proxy_push_req(dev, PCIEMU_REQ_SYNC); */
+	/* pciemu_proxy_push_req(dev, PCIEMU_REQ_QUIT); */
 
 	/* Configurar socket (nada a hacer) */
 
