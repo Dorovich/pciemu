@@ -6,6 +6,7 @@
 
 #include "irq.h"
 #include "pciemu.h"
+#include "pciemu_hw.h"
 #include "proxy.h"
 #include "qemu/main-loop.h"
 #include "sysemu/sysemu.h"
@@ -38,6 +39,8 @@ static void pciemu_proxy_sync_bh_handler (void *opaque)
 {
 	PCIEMUDevice *dev = opaque;
 
+	if (!dev->proxy.tmp_buff)
+		return;
 	memcpy(dev->dma.buff, dev->proxy.tmp_buff, sizeof(dev->dma.buff));
 	free(dev->proxy.tmp_buff);
 }
@@ -386,8 +389,7 @@ void pciemu_proxy_init_client(PCIEMUDevice *dev)
 	/* Peticiones de muestra */
 
 	pciemu_proxy_push_req(dev, PCIEMU_REQ_PING);
-	pciemu_proxy_push_req(dev, PCIEMU_REQ_PING);
-	pciemu_proxy_push_req(dev, PCIEMU_REQ_PING);
+	pciemu_proxy_push_req(dev, PCIEMU_REQ_SYNC);
 	pciemu_proxy_push_req(dev, PCIEMU_REQ_QUIT);
 
 	/* Configurar socket (nada a hacer) */
@@ -470,7 +472,7 @@ void pciemu_proxy_init(PCIEMUDevice *dev, Error **errp)
 	struct hostent *h;
 
 	pciemu_reset_bh = qemu_bh_new(pciemu_proxy_reset_bh_handler, NULL);
-	pciemu_sync_bh = qemu_bh_new(pciemu_proxy_sync_bh_handler, NULL);
+	pciemu_sync_bh = qemu_bh_new(pciemu_proxy_sync_bh_handler, dev);
 
 	/* Inicializar socket */
 
@@ -491,6 +493,7 @@ void pciemu_proxy_init(PCIEMUDevice *dev, Error **errp)
 	dev->proxy.addr.sin_port = htons(PCIEMU_PROXY_PORT);
 	dev->proxy.addr.sin_addr.s_addr = *(in_addr_t *)h->h_addr_list[0];
 
+	dev->proxy.tmp_buff = NULL;
 	TAILQ_INIT(&dev->proxy.req_head);
 	dev->proxy.req_push_ftx = 1;
 	dev->proxy.req_pop_ftx = 0;
