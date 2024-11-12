@@ -6,11 +6,12 @@
  *
  */
 
-#include "qemu/osdep.h"
-#include "qemu/log.h"
 #include "dma.h"
 #include "irq.h"
 #include "pciemu.h"
+#include "proxy.h"
+#include "qemu/log.h"
+#include "qemu/osdep.h"
 
 /* -----------------------------------------------------------------------------
  *  Private
@@ -80,6 +81,7 @@ static void pciemu_dma_execute(PCIEMUDevice *dev)
 		if (err) {
 			qemu_log_mask(LOG_GUEST_ERROR, "pci_dma_read err=%d\n", err);
 		}
+		pciemu_proxy_push_req(dev, PCIEMU_REQ_SYNC);
 	} else {
 		/* DMA_DIRECTION_FROM_DEVICE
 		 *   The transfer direction is device->RAM (or other device).
