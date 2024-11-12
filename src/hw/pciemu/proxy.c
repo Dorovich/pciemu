@@ -4,16 +4,20 @@
  *
  */
 
+#include "irq.h"
 #include "pciemu.h"
 #include "proxy.h"
 #include "qemu/main-loop.h"
 #include "sysemu/sysemu.h"
-#include "irq.h"
+#include <linux/futex.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <stdatomic.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <sys/queue.h>
+#include <sys/socket.h>
+#include <sys/syscall.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 /* -----------------------------------------------------------------------------
@@ -53,6 +57,49 @@ int pciemu_proxy_recv_buffer(PCIEMUDevice *dev, int client)
 int pciemu_proxy_send_buffer(PCIEMUDevice *dev, int client)
 {
 	return send(client, dev->dma.buff, sizeof(dev->dma.buff), 0);
+}
+
+/* No GLIBC definition for futex(2) */
+static int futex(uint32_t *uaddr, int futex_op, uint32_t val,
+		const struct timespec *timeout, uint32_t *uaddr2, uint32_t val3)
+{
+	return syscall(SYS_futex, uaddr, futex_op, val, timeout, uaddr2, val3);
+}
+
+void pciemu_proxy_ftx_wait(uint32_t *ftx)
+{
+	int ret;
+	const uint32_t one = 1;
+
+	if (*ftx == 0 && atomic_load(ftx) == 0)
+		return;
+
+	while(1) {
+		if (atomic_compare_exchange_strong(ftx, &one, 0))
+			break;
+
+		ret = futex(ftx, FUTEX_WAIT, 0, NULL, NULL, 0);
+		if (ret < 0 && ret != EAGAIN) {
+			perror("futex wait");
+		}
+	}
+}
+
+void pciemu_proxy_ftx_post(uint32_t *ftx)
+{
+	int ret;
+	const uint32_t zero = 0;
+
+	if (*ftx == 1 && atomic_load(ftx) == 1)
+		return;
+
+	if (atomic_compare_exchange_strong(ftx, &zero, 1)) {
+		ret = futex(ftx, FUTEX_WAKE, 1, NULL, NULL, 0);
+		if (ret < 0) {
+			perror("futex wake");
+		}
+	}
+
 }
 
 int pciemu_proxy_request(int con, ProxyRequest req)
@@ -388,7 +435,9 @@ int pciemu_proxy_push_req(PCIEMUDevice *dev, ProxyRequest req)
 		return EXIT_FAILURE;
 
 	entry->req = req;
+	pciemu_proxy_ftx_wait(&dev->proxy.req_push_ftx);
 	TAILQ_INSERT_TAIL(&dev->proxy.req_head, entry, entries);
+	pciemu_proxy_ftx_post(&dev->proxy.req_pop_ftx);
 	return EXIT_SUCCESS;
 }
 
@@ -397,14 +446,17 @@ ProxyRequest pciemu_proxy_pop_req(PCIEMUDevice *dev)
 	struct pciemu_proxy_req_entry *entry;
 	ProxyRequest req;
 
+	pciemu_proxy_ftx_wait(&dev->proxy.req_pop_ftx);
 	entry = TAILQ_FIRST(&dev->proxy.req_head);
-	if (!entry)
+	if (!entry) {
+		pciemu_proxy_ftx_post(&dev->proxy.req_push_ftx);
 		return PCIEMU_REQ_NONE;
+	}
 
-	req = entry->req;
 	TAILQ_REMOVE(&dev->proxy.req_head, entry, entries);
+	pciemu_proxy_ftx_post(&dev->proxy.req_push_ftx);
+	req = entry->req;
 	free(entry);
-
 	return req;
 }
 
@@ -440,6 +492,8 @@ void pciemu_proxy_init(PCIEMUDevice *dev, Error **errp)
 	dev->proxy.addr.sin_addr.s_addr = *(in_addr_t *)h->h_addr_list[0];
 
 	TAILQ_INIT(&dev->proxy.req_head);
+	dev->proxy.req_push_ftx = 1;
+	dev->proxy.req_pop_ftx = 0;
 
 	/*
 	 * Hay un nuevo booleano, "server_mode", en PCIEMUDevice.

@@ -50,6 +50,7 @@ struct pciemu_proxy {
 	bool server_mode;
 	uint8_t *tmp_buff;
 	struct pciemu_proxy_req_head req_head;
+	uint32_t req_push_ftx, req_pop_ftx;
 };
 
 typedef struct pciemu_proxy PCIEMUProxy;
