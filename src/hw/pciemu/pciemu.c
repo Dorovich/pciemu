@@ -139,6 +139,10 @@ static void pciemu_instance_init(Object *obj)
 	dev->proxy.server_mode = true;
 	object_property_add_bool(obj, "server_mode", pciemu_proxy_get_mode,
 				pciemu_proxy_set_mode);
+
+	dev->proxy.port = PCIEMU_PROXY_PORT;
+	object_property_add_uint16_ptr(obj, "port", &dev->proxy.port,
+			OBJ_PROP_FLAG_READWRITE);
 }
 
 /* -----------------------------------------------------------------------------

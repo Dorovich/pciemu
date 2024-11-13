@@ -26,6 +26,8 @@
 #define PCIEMU_REQ_INTA 0x06
 #define PCIEMU_REQ_SYNC 0x07 /* this <- other */
 #define PCIEMU_REQ_SYNCME 0x08 /* this -> other */
+#define PCIEMU_REQ_SYNCTX 0x09
+#define PCIEMU_REQ_RING 0x0a
 
 #define PCIEMU_HANDLE_FAILURE -1
 #define PCIEMU_HANDLE_SUCCESS 0
@@ -45,12 +47,13 @@ TAILQ_HEAD(pciemu_proxy_req_head, pciemu_proxy_req_entry);
 
 struct pciemu_proxy {
 	pthread_t proxy_thread;
-	struct sockaddr_in addr;
 	int sockd;
 	bool server_mode;
-	uint8_t *tmp_buff;
-	struct pciemu_proxy_req_head req_head;
+	void *tmp_buff;
+	uint16_t port;
 	uint32_t req_push_ftx, req_pop_ftx;
+	struct sockaddr_in addr;
+	struct pciemu_proxy_req_head req_head;
 };
 
 typedef struct pciemu_proxy PCIEMUProxy;

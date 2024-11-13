@@ -63,6 +63,9 @@ void pciemu_dma_config_txdesc_len(PCIEMUDevice *dev, dma_size_t size);
 
 void pciemu_dma_config_cmd(PCIEMUDevice *dev, dma_cmd_t cmd);
 
+void pciemu_dma_config_quick(PCIEMUDevice *dev, dma_addr_t src, dma_addr_t dst,
+		dma_size_t size, dma_cmd_t cmd);
+
 void pciemu_dma_doorbell_ring(PCIEMUDevice *dev);
 
 void pciemu_dma_reset(PCIEMUDevice *dev);

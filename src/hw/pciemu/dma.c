@@ -177,6 +177,24 @@ void pciemu_dma_config_cmd(PCIEMUDevice *dev, dma_cmd_t cmd)
 }
 
 /**
+ * pciemu_dma_config_cmd: Quickly configure the DMA registers
+ */
+void pciemu_dma_config_quick(PCIEMUDevice *dev, dma_addr_t src, dma_addr_t dst,
+		dma_size_t size, dma_cmd_t cmd)
+{
+	DMAEngine *dma = &dev->dma;
+
+	DMAStatus status = qatomic_read(&dma->status);
+	if (status != DMA_STATUS_IDLE)
+		return;
+
+	dma->config.txdesc.src = src;
+	dma->config.txdesc.dst = dst;
+	dma->config.txdesc.len = size;
+	dma->config.cmd = cmd;
+}
+
+/**
  * pciemu_dma_doorbell_ring: Reception of a doorbell
  *
  * When the host (or other device) writes to the doorbell register
