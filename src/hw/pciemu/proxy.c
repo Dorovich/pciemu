@@ -553,13 +553,6 @@ void pciemu_proxy_init(PCIEMUDevice *dev, Error **errp)
 	dev->proxy.req_push_ftx = 1;
 	dev->proxy.req_pop_ftx = 0;
 
-	/*
-	 * Hay un nuevo booleano, "server_mode", en PCIEMUDevice.
-	 * Se puede pasar su valor inicial por la línea de comandos
-	 * con "-device pciemu,server_mode=[on|off]" (ver pciemu_instance_init,
-	 * en pciemu.c)
-	 */
-
 	if (dev->proxy.server_mode)
 		pciemu_proxy_init_server(dev);
 	else
