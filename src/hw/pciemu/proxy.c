@@ -30,12 +30,12 @@ void qmp_system_reset(void *reason); /* forward declaration */
 
 static QEMUBH *pciemu_reset_bh, *pciemu_sync_bh, *pciemu_synctx_bh;
 
-static void pciemu_proxy_reset_bh_handler (void *opaque)
+static void pciemu_proxy_reset_bh_handler(void *opaque)
 {
 	qmp_system_reset(NULL); /* ver qemu/ui/gtk.c, línea 1313 */
 }
 
-static void pciemu_proxy_sync_bh_handler (void *opaque)
+static void pciemu_proxy_sync_bh_handler(void *opaque)
 {
 	PCIEMUDevice *dev = opaque;
 
@@ -45,7 +45,7 @@ static void pciemu_proxy_sync_bh_handler (void *opaque)
 	free(dev->proxy.tmp_buff);
 }
 
-static void pciemu_proxy_synctx_bh_handler (void *opaque)
+static void pciemu_proxy_synctx_bh_handler(void *opaque)
 {
 	PCIEMUDevice *dev = opaque;
 
