@@ -61,7 +61,7 @@ static long pciemu_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	unsigned long __user vaddr = arg;
 	unsigned long ofs = vaddr & ~PAGE_MASK;
 	unsigned long len = ((ofs + sizeof(int)) > PAGE_SIZE) ?
-				    (PAGE_SIZE - ofs) : sizeof(int);
+		(PAGE_SIZE - ofs) : sizeof(int);
 	dev_dbg(&pciemu_dev->pdev->dev, "pciemu_ioctl, cmd = %x, addr=%lx\n",
 		cmd, vaddr);
 	switch (cmd) {

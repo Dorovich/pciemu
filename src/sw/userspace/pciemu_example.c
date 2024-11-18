@@ -96,7 +96,7 @@ static inline void dump_mappings(void)
     char cmd[64];
     snprintf(cmd, 64, "cat /proc/%d/maps", getpid());
     if (system(cmd) < 0)
-	    return;
+	    LOG("Could not show mappings.");
 }
 
 static int open_pciemu_dev(struct context *ctx)

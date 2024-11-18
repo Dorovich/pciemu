@@ -51,7 +51,7 @@
 /* DMA */
 #define PCIEMU_HW_DMA_ADDR_CAPABILITY 32
 #define PCIEMU_HW_DMA_AREA_START 0x10000
-#define PCIEMU_HW_DMA_AREA_SIZE 0x1000
+#define PCIEMU_HW_DMA_AREA_SIZE 0x1000 //0x400000 // 4MB
 
 /* DMA Commands expliciting direction of transfer */
 #define PCIEMU_HW_DMA_DIRECTION_TO_DEVICE 0x1
