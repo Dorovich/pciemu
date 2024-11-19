@@ -123,7 +123,8 @@ static struct context parse_args(int argc, char **argv)
 	ctx.pci_func_nb = 0;
 	/* get the number of registers directly from HW definitions */
 	ctx.pci_hw_regs_nb = PCIEMU_HW_BAR0_REG_CNT;
-	ctx.pci_hw_bar_len = ctx.pci_hw_regs_nb * sizeof(uint64_t);
+	/* ctx.pci_hw_bar_len = ctx.pci_hw_regs_nb * sizeof(uint64_t); */
+	ctx.pci_hw_bar_len = PCIEMU_HW_BAR0_START - PCIEMU_HW_BAR0_END;
 	ctx.verbosity = 0;
 
 	while ((op = getopt(argc, argv, "b:d:hr:s:v")) != -1) {
@@ -240,13 +241,13 @@ int main(int argc, char **argv)
 	val = rand();
 	printf("val=%d\n", val);
 
-	ctx->virt_addr[PCIEMU_HW_BAR0_DMA_CFG_TXDESC_SRC] = &val;
-	ctx->virt_addr[PCIEMU_HW_BAR0_DMA_CFG_TXDESC_DST] =
+	ctx.virt_addr[PCIEMU_HW_BAR0_DMA_CFG_TXDESC_SRC] = &val;
+	ctx.virt_addr[PCIEMU_HW_BAR0_DMA_CFG_TXDESC_DST] =
 		PCIEMU_HW_DMA_AREA_START;
-	ctx->virt_addr[PCIEMU_HW_BAR0_DMA_CFG_TXDESC_LEN] = sizeof(val);
-	ctx->virt_addr[PCIEMU_HW_BAR0_DMA_CFG_TXDESC_CMD] =
+	ctx.virt_addr[PCIEMU_HW_BAR0_DMA_CFG_TXDESC_LEN] = sizeof(val);
+	ctx.virt_addr[PCIEMU_HW_BAR0_DMA_CFG_TXDESC_CMD] =
 		PCIEMU_HW_DMA_DIRECTION_TO_DEVICE;
-	ctx->virt_addr[PCIEMU_HW_BAR0_DMA_DOORBELL_RING] = 1;
+	ctx.virt_addr[PCIEMU_HW_BAR0_DMA_DOORBELL_RING] = 1;
 
 err_open:
 err_mmap:
