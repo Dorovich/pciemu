@@ -124,7 +124,8 @@ static struct context parse_args(int argc, char **argv)
 	/* get the number of registers directly from HW definitions */
 	ctx.pci_hw_regs_nb = PCIEMU_HW_BAR0_REG_CNT;
 	/* ctx.pci_hw_bar_len = ctx.pci_hw_regs_nb * sizeof(uint64_t); */
-	ctx.pci_hw_bar_len = PCIEMU_HW_BAR0_START - PCIEMU_HW_BAR0_END;
+	/* ctx.pci_hw_bar_len = PCIEMU_HW_BAR0_START - PCIEMU_HW_BAR0_END; */
+	ctx.pci_hw_bar_len = 10 * sizeof(uint64_t); // magic number
 	ctx.verbosity = 0;
 
 	while ((op = getopt(argc, argv, "b:d:hr:s:v")) != -1) {
