@@ -74,4 +74,8 @@ void pciemu_dma_init(PCIEMUDevice *dev, Error **errp);
 
 void pciemu_dma_fini(PCIEMUDevice *dev);
 
+int pciemu_dma_input(PCIEMUDevice *dev);
+
+int pciemu_dma_output(PCIEMUDevice *dev);
+
 #endif /* PCIEMU_DMA_H */

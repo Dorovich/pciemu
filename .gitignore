@@ -15,6 +15,9 @@
 # logs
 *.log
 
+# lsp
+compile_commands.json
+
 # build folders
 build/
 /src/hw/pciemu/pciemu_hw.h

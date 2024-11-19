@@ -5,6 +5,7 @@
  */
 
 #include "irq.h"
+#include "dma.h"
 #include "pciemu.h"
 #include "pciemu_hw.h"
 #include "proxy.h"
@@ -28,7 +29,7 @@
 
 void qmp_system_reset(void *reason); /* forward declaration */
 
-static QEMUBH *pciemu_reset_bh, *pciemu_sync_bh, *pciemu_synctx_bh;
+static QEMUBH *pciemu_reset_bh, *pciemu_sync_bh;
 
 static void pciemu_proxy_reset_bh_handler(void *opaque)
 {
@@ -38,20 +39,15 @@ static void pciemu_proxy_reset_bh_handler(void *opaque)
 static void pciemu_proxy_sync_bh_handler(void *opaque)
 {
 	PCIEMUDevice *dev = opaque;
+	DMAEngine *dma = &dev->dma;
 
-	if (!dev->proxy.tmp_buff)
+	if (!dev->proxy.tmp_conf || !dev->proxy.tmp_buff)
 		return;
-	memcpy(dev->dma.buff, dev->proxy.tmp_buff, sizeof(dev->dma.buff));
-	free(dev->proxy.tmp_buff);
-}
 
-static void pciemu_proxy_synctx_bh_handler(void *opaque)
-{
-	PCIEMUDevice *dev = opaque;
+	memcpy(&dma->config, dev->proxy.tmp_conf, sizeof(dma->config));
+	free(dev->proxy.tmp_conf);
 
-	if (!dev->proxy.tmp_buff)
-		return;
-	memcpy(&dev->dma.config, dev->proxy.tmp_buff, sizeof(dev->dma.config));
+	memcpy(dma->buff, dev->proxy.tmp_buff, dma->config.txdesc.len);
 	free(dev->proxy.tmp_buff);
 }
 
@@ -163,12 +159,25 @@ int pciemu_proxy_handle_req(PCIEMUDevice *dev, int con, ProxyRequest req)
 			ret_handle = PCIEMU_HANDLE_FINISH;
 		break;
 	case PCIEMU_REQ_INTA:
-		pciemu_irq_raise(dev, 0);
+		pciemu_irq_raise(dev, PCIEMU_HW_IRQ_FINI);
 		ret = pciemu_proxy_request(con, PCIEMU_REQ_ACK);
 		if (ret < 0)
 			ret_handle = PCIEMU_HANDLE_FAILURE;
 		break;
 	case PCIEMU_REQ_SYNC:
+		/* Sync DMA config */
+		ret = pciemu_proxy_recv_buffer(dev, con, &dev->dma.config,
+				sizeof(dev->dma.config));
+		if (ret < 0) {
+			ret_handle = PCIEMU_HANDLE_FAILURE;
+			break;
+		}
+		ret = pciemu_proxy_request(con, PCIEMU_REQ_ACK);
+		if (ret < 0) {
+			ret_handle = PCIEMU_HANDLE_FAILURE;
+			break;
+		}
+		/* Sync DMA buffer */
 		ret = pciemu_proxy_recv_buffer(dev, con, dev->dma.buff,
 				sizeof(dev->dma.buff));
 		if (ret < 0) {
@@ -180,34 +189,30 @@ int pciemu_proxy_handle_req(PCIEMUDevice *dev, int con, ProxyRequest req)
 		if (ret < 0)
 			ret_handle = PCIEMU_HANDLE_FAILURE;
 		break;
-	case PCIEMU_REQ_SYNCME:
+	case PCIEMU_REQ_SYNCME: /* TODO: sync txdesc */
 		ret = pciemu_proxy_request(con, PCIEMU_REQ_SYNC);
 		if (ret < 0) {
 			ret_handle = PCIEMU_HANDLE_FAILURE;
 			break;
 		}
 		ret = pciemu_proxy_send_buffer(dev, con, dev->dma.buff,
-				sizeof(dev->dma.buff));
-		if (ret < 0)
-			ret_handle = PCIEMU_HANDLE_FAILURE;
-		break;
-	case PCIEMU_REQ_SYNCTX:
-		ret = pciemu_proxy_recv_buffer(dev, con, &dev->dma.config,
-				sizeof(dev->dma.config));
-		if (ret < 0) {
-			ret_handle = PCIEMU_HANDLE_FAILURE;
-			break;
-		}
-		qemu_bh_schedule(pciemu_synctx_bh);
-		ret = pciemu_proxy_request(con, PCIEMU_REQ_ACK);
+				dev->dma.config.txdesc.len);
 		if (ret < 0)
 			ret_handle = PCIEMU_HANDLE_FAILURE;
 		break;
 	case PCIEMU_REQ_RING:
-		pciemu_dma_doorbell_ring(dev);
-		ret = pciemu_proxy_request(con, PCIEMU_REQ_ACK);
-		if (ret < 0)
+		ret = pciemu_dma_output(dev);
+		if (ret < 0) {
 			ret_handle = PCIEMU_HANDLE_FAILURE;
+			break;
+		}
+		pciemu_irq_raise(dev, PCIEMU_HW_IRQ_FINI);
+		ret = pciemu_proxy_request(con, PCIEMU_REQ_ACK);
+		if (ret < 0) {
+			ret_handle = PCIEMU_HANDLE_FAILURE;
+			break;
+		}
+		pciemu_proxy_push_req(PCIEMU_REQ_INTA);
 		break;
 	case PCIEMU_REQ_ACK:
 	case PCIEMU_REQ_PONG:
@@ -268,33 +273,7 @@ int pciemu_proxy_issue_req(PCIEMUDevice *dev, int con, ProxyRequest req)
 			ret_handle = PCIEMU_HANDLE_FAILURE;
 			break;
 		}
-		ret = pciemu_proxy_send_buffer(dev, con, dev->dma.buff,
-				sizeof(dev->dma.buff));
-		if (ret < 0) {
-			ret_handle = PCIEMU_HANDLE_FAILURE;
-			break;
-		}
-		ret = pciemu_proxy_wait_reply(con, PCIEMU_REQ_ACK);
-		if (ret < 0)
-			ret_handle = PCIEMU_HANDLE_FAILURE;
-		break;
-	case PCIEMU_REQ_SYNCME:
-		ret = pciemu_proxy_request(con, req);
-		if (ret < 0) {
-			ret_handle = PCIEMU_HANDLE_FAILURE;
-			break;
-		}
-		ret = pciemu_proxy_recv_buffer(dev, con, dev->dma.buff,
-				sizeof(dev->dma.buff));
-		if (ret < 0)
-			ret_handle = PCIEMU_HANDLE_FAILURE;
-		break;
-	case PCIEMU_REQ_SYNCTX:
-		ret = pciemu_proxy_request(con, req);
-		if (ret < 0) {
-			ret_handle = PCIEMU_HANDLE_FAILURE;
-			break;
-		}
+		/* Sync DMA config */
 		ret = pciemu_proxy_send_buffer(dev, con, &dev->dma.config,
 				sizeof(dev->dma.config));
 		if (ret < 0) {
@@ -302,6 +281,29 @@ int pciemu_proxy_issue_req(PCIEMUDevice *dev, int con, ProxyRequest req)
 			break;
 		}
 		ret = pciemu_proxy_wait_reply(con, PCIEMU_REQ_ACK);
+		if (ret < 0) {
+			ret_handle = PCIEMU_HANDLE_FAILURE;
+			break;
+		}
+		/* Sync DMA buffer */
+		ret = pciemu_proxy_send_buffer(dev, con, dev->dma.buff,
+				dev->dma.config.txdesc.len);
+		if (ret < 0) {
+			ret_handle = PCIEMU_HANDLE_FAILURE;
+			break;
+		}
+		ret = pciemu_proxy_wait_reply(con, PCIEMU_REQ_ACK);
+		if (ret < 0)
+			ret_handle = PCIEMU_HANDLE_FAILURE;
+		break;
+	case PCIEMU_REQ_SYNCME: /* TODO: sync txdesc */
+		ret = pciemu_proxy_request(con, req);
+		if (ret < 0) {
+			ret_handle = PCIEMU_HANDLE_FAILURE;
+			break;
+		}
+		ret = pciemu_proxy_recv_buffer(dev, con, dev->dma.buff,
+				sizeof(dev->dma.buff));
 		if (ret < 0)
 			ret_handle = PCIEMU_HANDLE_FAILURE;
 		break;
@@ -443,8 +445,6 @@ void pciemu_proxy_init_client(PCIEMUDevice *dev)
 	/* Peticiones de muestra */
 
 	pciemu_proxy_push_req(dev, PCIEMU_REQ_PING);
-	/* pciemu_proxy_push_req(dev, PCIEMU_REQ_SYNC); */
-	/* pciemu_proxy_push_req(dev, PCIEMU_REQ_QUIT); */
 
 	/* Configurar socket (nada a hacer) */
 
@@ -527,7 +527,6 @@ void pciemu_proxy_init(PCIEMUDevice *dev, Error **errp)
 
 	pciemu_reset_bh = qemu_bh_new(pciemu_proxy_reset_bh_handler, NULL);
 	pciemu_sync_bh = qemu_bh_new(pciemu_proxy_sync_bh_handler, dev);
-	pciemu_synctx_bh = qemu_bh_new(pciemu_proxy_synctx_bh_handler, dev);
 
 	/* Inicializar socket */
 

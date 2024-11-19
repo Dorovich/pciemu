@@ -26,12 +26,14 @@
 #define PCIEMU_REQ_INTA 0x06
 #define PCIEMU_REQ_SYNC 0x07 /* this <- other */
 #define PCIEMU_REQ_SYNCME 0x08 /* this -> other */
-#define PCIEMU_REQ_SYNCTX 0x09
-#define PCIEMU_REQ_RING 0x0a
+#define PCIEMU_REQ_RING 0x09
 
 #define PCIEMU_HANDLE_FAILURE -1
 #define PCIEMU_HANDLE_SUCCESS 0
 #define PCIEMU_HANDLE_FINISH 1
+
+#define PCIEMU_RECP_SELF 0 /* recipient = self */
+#define PCIEMU_RECP_OTHER 1 /* recipient = other end */
 
 /* Forward declaration */
 typedef struct PCIEMUDevice PCIEMUDevice;
@@ -49,7 +51,7 @@ struct pciemu_proxy {
 	pthread_t proxy_thread;
 	int sockd;
 	bool server_mode;
-	void *tmp_buff;
+	void *tmp_conf, *tmp_buff;
 	uint16_t port;
 	uint32_t req_push_ftx, req_pop_ftx;
 	struct sockaddr_in addr;

@@ -122,7 +122,10 @@ static void pciemu_mmio_write(void *opaque, hwaddr addr, uint64_t val,
 		pciemu_dma_config_cmd(dev, val);
 		break;
 	case PCIEMU_HW_BAR0_DMA_DOORBELL_RING:
-		pciemu_dma_doorbell_ring(dev);
+		if (!pciemu_dma_input(dev))
+			break;
+		pciemu_proxy_push_req(PCIEMU_REQ_SYNC);
+		pciemu_proxy_push_req(PCIEMU_REQ_RING);
 		break;
 	}
 }
