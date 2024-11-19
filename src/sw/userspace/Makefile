@@ -12,7 +12,7 @@ build_dir := build/
 include_dir := $(abspath ../../../include/)
 includes := $(addprefix -I, $(include_dir))
 cflags := -Wall -Werror -O2 $(includes)
-targets := pciemu_example dma-read dma-write
+targets := pciemu_example dma-read dma-write mmap-test
 
 .PHONY : all
 all: $(targets)
