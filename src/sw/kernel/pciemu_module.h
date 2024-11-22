@@ -23,11 +23,11 @@ struct pciemu_bar {
 };
 
 struct pciemu_dma {
-	dma_addr_t dma_handle;
+	dma_addr_t *dma_handles;
 	size_t offset;
 	size_t len;
 	enum dma_data_direction direction;
-	struct page *page;
+	struct page **pages;
 };
 
 struct pciemu_irq {
@@ -54,13 +54,19 @@ struct pciemu_dev {
 	struct cdev cdev;
 };
 
-int pciemu_dma_from_host_to_device(struct pciemu_dev *pciemu_dev,
-				   struct page *page, size_t offset,
-				   size_t size);
 
-int pciemu_dma_from_device_to_host(struct pciemu_dev *pciemu_dev,
-				   struct page *page, size_t offset,
-				   size_t size);
+int pciemu_dma_work(struct pciemu_dev *pciemu_dev, struct page **pages,
+		size_t npages, size_t ofs, size_t len);
+
+int pciemu_dma_wait(struct pciemu_dev *pciemu_dev);
+
+/* int pciemu_dma_from_host_to_device(struct pciemu_dev *pciemu_dev, */
+/* 				   struct page *page, size_t offset, */
+/* 				   size_t size); */
+
+/* int pciemu_dma_from_device_to_host(struct pciemu_dev *pciemu_dev, */
+/* 				   struct page *page, size_t offset, */
+/* 				   size_t size); */
 
 int pciemu_irq_enable(struct pciemu_dev *pciemu_dev);
 

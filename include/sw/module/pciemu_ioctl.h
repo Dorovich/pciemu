@@ -9,9 +9,22 @@
 #ifndef _PCIEMU_IOCTL_H_
 #define _PCIEMU_IOCTL_H_
 
+struct pciemu_tx {
+	unsigned long len; /* length of input data, in bytes */
+	unsigned long __user src; /* input data adress */
+	unsigned long __user dst; /* output data adress */
+}
+
 #define PCIEMU_IOCTL_MAGIC 0xE1
 
-#define PCIEMU_IOCTL_DMA_TO_DEVICE _IOW(PCIEMU_IOCTL_MAGIC, 1, void *)
-#define PCIEMU_IOCTL_DMA_FROM_DEVICE _IOR(PCIEMU_IOCTL_MAGIC, 2, void *)
+/*
+ * Start working on a memory transaction described by pciemu_tx
+ */
+#define PCIEMU_TX_WORK _IOW(PCIEMU_IOCTL_MAGIC, 1, struct pciemu_tx *)
+
+/*
+ * Passively wait for a previous transaction to end and get results size
+ */
+#define PCIEMU_TX_WAIT _IOR(PCIEMU_IOCTL_MAGIC, 2, size_t)
 
 #endif /* _PCIEMU_IOCTL_H_ */

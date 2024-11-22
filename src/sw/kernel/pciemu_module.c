@@ -55,35 +55,61 @@ static int pciemu_mmap(struct file *fp, struct vm_area_struct *vma)
 
 static long pciemu_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 {
-	struct pciemu_dev *pciemu_dev = fp->private_data;
-	int pages_pinned = 0;
-	int pages_nb_req = 1;
-	unsigned long __user vaddr = arg;
-	unsigned long ofs = vaddr & ~PAGE_MASK;
-	unsigned long len = ((ofs + sizeof(int)) > PAGE_SIZE) ?
-		(PAGE_SIZE - ofs) : sizeof(int);
-	dev_dbg(&pciemu_dev->pdev->dev, "pciemu_ioctl, cmd = %x, addr=%lx\n",
-		cmd, vaddr);
-	switch (cmd) {
-	case PCIEMU_IOCTL_DMA_TO_DEVICE:
-		pages_pinned = pin_user_pages_fast(vaddr, pages_nb_req,
-				FOLL_LONGTERM, &pciemu_dev->dma.page);
-		if (pages_pinned == pages_nb_req) {
-			pciemu_dma_from_host_to_device(pciemu_dev,
-					pciemu_dev->dma.page, ofs, len);
-		}
+	struct pciemu_dev *pciemu_dev;
+	struct pciemu_tx tx, __user *utx;
+	int first_page, last_page, npages, npages_pinned;
+	unsigned long ofs, len;
+
+	pciemu_dev = fp->private_data;
+	
+	switch(cmd) {
+	case PCIEMU_TX_WORK:
+		pages_pinned = 0;
+		utx = arg;
+		copy_from_user(&tx, utx, sizeof(tx));
+		first_page = (tx.src & PAGE_MASK) >> PAGE_SHIFT;
+		last_page ((tx.src+tx.len-1) & PAGE_MASK) >> PAGE_SHIFT;
+		npages = last_page - first_page + 1;
+		npages_pinned = pin_user_pages_fast(tx.src, npages,
+				FOLL_LONGTERM, &pciemu_dev->dma.pages);
+		if (npages == npages_pinned)
+			pciemu_dma_work(pciemu_dev, pciemu_dev->dma.pages);
 		break;
-	case PCIEMU_IOCTL_DMA_FROM_DEVICE:
-		pages_pinned = pin_user_pages_fast(vaddr, pages_nb_req,
-				FOLL_LONGTERM, &pciemu_dev->dma.page);
-		if (pages_pinned == pages_nb_req) {
-			pciemu_dma_from_device_to_host(pciemu_dev,
-					pciemu_dev->dma.page, ofs, len);
-		}
-		break;
+	case PCIEMU_TX_WAIT:
 	default:
 		return -ENOTTY;
 	}
+
+	/* struct pciemu_dev *pciemu_dev = fp->private_data; */
+	/* int pages_pinned = 0; */
+	/* int pages_nb_req = 1; */
+
+	/* unsigned long __user vaddr = arg; */
+	/* unsigned long ofs = vaddr & ~PAGE_MASK; */
+	/* unsigned long len = ((ofs + sizeof(int)) > PAGE_SIZE) ? */
+	/* 	(PAGE_SIZE - ofs) : sizeof(int); */
+	/* dev_dbg(&pciemu_dev->pdev->dev, "pciemu_ioctl, cmd = %x, addr=%lx\n", */
+	/* 	cmd, vaddr); */
+	/* switch (cmd) { */
+	/* case PCIEMU_IOCTL_DMA_TO_DEVICE: */
+	/* 	pages_pinned = pin_user_pages_fast(vaddr, pages_nb_req, */
+	/* 			FOLL_LONGTERM, &pciemu_dev->dma.page); */
+	/* 	if (pages_pinned == pages_nb_req) { */
+	/* 		pciemu_dma_from_host_to_device(pciemu_dev, */
+	/* 				pciemu_dev->dma.page, ofs, len); */
+	/* 	} */
+	/* 	break; */
+	/* case PCIEMU_IOCTL_DMA_FROM_DEVICE: */
+	/* 	pages_pinned = pin_user_pages_fast(vaddr, pages_nb_req, */
+	/* 			FOLL_LONGTERM, &pciemu_dev->dma.page); */
+	/* 	if (pages_pinned == pages_nb_req) { */
+	/* 		pciemu_dma_from_device_to_host(pciemu_dev, */
+	/* 				pciemu_dev->dma.page, ofs, len); */
+	/* 	} */
+	/* 	break; */
+	/* default: */
+	/* 	return -ENOTTY; */
+	/* } */
 	return 0;
 }
 
