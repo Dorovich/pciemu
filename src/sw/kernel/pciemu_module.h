@@ -11,6 +11,8 @@
 
 #include <linux/pci.h>
 #include <linux/cdev.h>
+#include <linux/wait.h>
+#include <linux/atomic.h>
 
 /* forward declaration */
 struct pciemu_dev;
@@ -26,6 +28,7 @@ struct pciemu_dma {
 	dma_addr_t *dma_handles;
 	size_t offset;
 	size_t len;
+	size_t npages;
 	enum dma_data_direction direction;
 	struct page **pages;
 };
@@ -52,6 +55,9 @@ struct pciemu_dev {
 	dev_t minor;
 	dev_t major;
 	struct cdev cdev;
+
+	atomic_t wq_flag;
+	wait_queue_head_t wq;
 };
 
 
