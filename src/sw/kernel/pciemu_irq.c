@@ -18,11 +18,13 @@ static irqreturn_t pciemu_irq_handler(int irq, void *data)
 	dev_dbg(&pciemu_dev->pdev->dev, "irq_handler irq = %d dev = %d\n", irq,
 		pciemu_dev->major);
 
-	/* TODO: unmap and unpit ALL used pages */
-	dma_unmap_page((&pciemu_dev->pdev->dev), pciemu_dev->dma.dma_handle,
-		       pciemu_dev->dma.len, pciemu_dev->dma.direction);
+	for (int i=0; i<pciemu_dev->dma.npages; ++i) {
+		dma_unmap_page(&pciemu_dev->pdev->dev,
+			pciemu_dev->dma.dma_handles[i],
+			pciemu_dev->dma.len, pciemu_dev->dma.direction);
+		unpin_user_page(pciemu_dev->dma.pages[i]);
+	}
 
-	unpin_user_page(pciemu_dev->dma.page);
 	/* Must do this ACK, or else the interrupt just keeps firing. */
 	iowrite32(1, pciemu_dev->irq.mmio_ack_irq);
 

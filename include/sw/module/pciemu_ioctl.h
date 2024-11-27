@@ -10,9 +10,8 @@
 #define _PCIEMU_IOCTL_H_
 
 struct pciemu_tx {
+	unsigned long __user addr; /* input/output data adress */
 	unsigned long len; /* length of input data, in bytes */
-	unsigned long __user src; /* input data adress */
-	unsigned long __user dst; /* output data adress */
 }
 
 #define PCIEMU_IOCTL_MAGIC 0xE1

@@ -61,8 +61,7 @@ struct pciemu_dev {
 };
 
 
-int pciemu_dma_work(struct pciemu_dev *pciemu_dev, struct page **pages,
-		size_t npages, size_t ofs, size_t len);
+int pciemu_dma_work(struct pciemu_dev *pciemu_dev);
 
 int pciemu_dma_wait(struct pciemu_dev *pciemu_dev);
 

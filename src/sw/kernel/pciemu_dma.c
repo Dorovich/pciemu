@@ -21,35 +21,37 @@ static void pciemu_dma_struct_init(struct pciemu_dma *dma, size_t ofs,
 	dma->direction = drctn;
 }
 
-int pciemu_dma_config_npages(struct pciemu_dev *pciemu_dev, size_t npages)
+int pciemu_dma_set_npages(struct pciemu_dev *pciemu_dev)
 {
 	void __iomem *mmio = pciemu_dev->bar.mmio;
-	iowrite32((u32)len, mmio + PCIEMU_HW_BAR0_DMA_CFG_TXDESC_NPAGES);
+	iowrite32((u32)pciemu_dev->dma.npages,
+		mmio + PCIEMU_HW_BAR0_DMA_CFG_TXDESC_NPAGES);
 }
 
 int pciemu_dma_setup_handles(struct pciemu_dev *pciemu_dev)
 {
 	struct pci_dev *pdev;
 	struct pciemu_dma *dma;
-	size_t len_page;
+	size_t len, len_map;
 
 	pdev = pciemu_dev->pdev;
 	dma = &pciemu_dev->dma;
 
-	dma->dma_handles = kmalloc(npages*sizeof(dma_addr_t), GPF_KERNEL);
+	dma->dma_handles = kmalloc(dma->npages*sizeof(dma_addr_t), GPF_KERNEL);
 
-	len_page = PAGE_SIZE - dma->offset;
-	if (len_page > len)
-		len_page = len;
-	len -= len_page;
+	len = dma->len;
+	len_map = PAGE_SIZE - dma->offset;
+	if (len_map > len)
+		len_map = len;
+	len -= len_map;
 	dma->dma_handles[0] = dma_map_page(&pdev->dev, pages[0], dma->offset,
-					len_page, dma->direction);
+					len_map, dma->direction);
 
 	for (int i=1; i<npages; ++i) {
-		len_page = len > PAGE_SIZE ? PAGE_SIZE : len;
-		len -= len_page;
-		dma->dma_handles[i] = dma_map_page(&pdev->dev, pages[i], 0,
-				len_page, dma->direction);
+		len_map = len > PAGE_SIZE ? PAGE_SIZE : len;
+		len -= len_map;
+		dma->dma_handles[i] = dma_map_page(&pdev->dev, dma->pages[i], 0,
+				len_map, dma->direction);
 		if (dma_mapping_error(&pdev->dev, dma->dma_handle[i]))
 			return -ENOMEM;
 	}
@@ -57,7 +59,7 @@ int pciemu_dma_setup_handles(struct pciemu_dev *pciemu_dev)
 	return 0;
 }
 
-int pciemu_dma_work(struct pciemu_dev *pciemu_dev)
+int pciemu_dma_setup(struct pciemu_dev *pciemu_dev, int mode)
 {
 	struct pci_dev *pdev;
 	struct pciemu_dma *dma;
@@ -65,38 +67,30 @@ int pciemu_dma_work(struct pciemu_dev *pciemu_dev)
 	int ret;
 
 	mmio = pciemu_dev->bar.mmio;
-	pciemu_dev->dma.direction = DMA_TO_DEVICE;
+	dma = &pciemu_dev->dma;
 
-	ret = pciemu_dma_setup_handles(pciemu_dev, pages, npages, len);
+	switch(mode) {
+	case PCIEMU_HW_DMA_WORK:
+		dma->direction = DMA_TO_DEVICE;
+		break;
+	case PCIEMU_HW_DMA_WATCH:
+		dma->direction = DMA_FROM_DEVICE;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = pciemu_dma_setup_handles(pciemu_dev);
 	if (ret < 0)
 		return ret;
 
-	iowrite32(npages, mmio + PCIEMU_HW_BAR0_DMA_CFG_NPAGES);
-
-	/*
-	 * Aquí quizá deberíamos esperar a que el dispositivo de
-	 * la señal de que está listo para recibir las direcciones...
-	 */
-
-	/* Opción 1 */
-	for (int i=0; i<npages; ++i) {
-		size_t handle_ofs = i * sizeof(u32);
-		iowrite32((u32)pciemu_dev->dma.dma_handle[i],
-			mmio + PCIEMU_HW_BAR0_DMA_CFG_TXDESC_SRC + handle_ofs);
+	iowrite32(dma->npages, mmio + PCIEMU_HW_BAR0_DMA_CFG_PGS);
+	iowrite32(dma->len, mmio + PCIEMU_HW_BAR0_DMA_CFG_LEN);
+	iowrite32(mode, mmio + PCIEMU_HW_BAR0_DMA_CFG_MODE);
+	for (size_t ofs=0; ofs < dma->npages*sizeof(u32); ofs+=sizeof(u32)) {
+		iowrite32((u32)dma->dma_handle[i],
+			mmio + PCIEMU_HW_BAR0_DMA_WORK_AREA_START + ofs);
 	}
-
-	/* Opción 2 */
-	/* for (int i=0; i<npages; ++i) { */
-	/* 	iowrite32((u32)pciemu_dev->dma.dma_handle[i], */
-	/* 		mmio + PCIEMU_HW_BAR0_DMA_CFG_TXDESC_SRC); */
-	/* } */
-
-	iowrite32(PCIEMU_HW_DMA_AREA_START,
-		mmio + PCIEMU_HW_BAR0_DMA_CFG_TXDESC_DST);
-	iowrite32(pciemu_dev->dma.len,
-		mmio + PCIEMU_HW_BAR0_DMA_CFG_TXDESC_LEN);
-	iowrite32(PCIEMU_HW_DMA_DIRECTION_TO_DEVICE,
-		mmio + PCIEMU_HW_BAR0_DMA_CFG_CMD);
 	iowrite32(1, mmio + PCIEMU_HW_BAR0_DMA_DOORBELL_RING);
 
 	return 0;

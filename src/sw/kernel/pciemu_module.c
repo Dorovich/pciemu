@@ -16,7 +16,7 @@
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0");
 MODULE_DESCRIPTION("Kernel module to drive the pciemu virtual device");
-MODULE_AUTHOR("Luiz Henrique Suraty Filho <luiz-dev@suraty.com>");
+MODULE_AUTHOR("David Cañadas López <dcanadas@bsc.es>");
 
 static struct class *pciemu_class;
 
@@ -53,35 +53,60 @@ static int pciemu_open(struct inode *inode, struct file *fp)
 /* 	return ret; */
 /* } */
 
+int pciemu_check_tx_len(struct pciemu_dev *pciemu_dev, size_t len)
+{
+	u32 len_avail;
+	void __iomem *mmio;
+
+	mmio = pciemu_dev->bar.mmio;
+	len_avail = ioread32(mmio + PCIEMU_HW_BAR0_DMA_CFG_NPAGES);
+
+	if (len > len_avail)
+		return -ENOSPC;
+	return 0;
+}
+
+int pciemu_setup_pages(struct pciemu_dev *pciemu_dev, struct pciemu_tx *tx)
+{
+	int first_page, last_page, npages, npages_pinned;
+
+	npages_pinned = 0;
+	first_page = (tx->addr & PAGE_MASK) >> PAGE_SHIFT;
+	last_page ((tx->addr + tx->len - 1) & PAGE_MASK) >> PAGE_SHIFT;
+	npages = last_page - first_page + 1;
+	npages_pinned = pin_user_pages_fast(tx->addr, npages,
+					FOLL_LONGTERM, pciemu_dev->dma.pages);
+
+	pciemu_dev->dma.offset = tx->addr & ~PAGE_MASK;
+	pciemu_dev->dma.npages = npages;
+	pciemu_dev->dma.len = tx->len;
+
+	return npages_pinned - npages;
+}
+
 static long pciemu_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 {
 	struct pciemu_dev *pciemu_dev;
 	struct pciemu_tx tx, __user *utx;
-	int first_page, last_page, npages, npages_pinned;
-	size_t ofs;
 
 	pciemu_dev = fp->private_data;
+	utx = arg;
 
 	switch(cmd) {
-	case PCIEMU_TX_WORK:
-		pages_pinned = 0;
-		utx = arg;
+	case PCIEMU_IOCTL_WORK:
 		copy_from_user(&tx, utx, sizeof(tx));
-		ofs = PAGE_SIZE - (tx.src & ~PAGE_MASK);
-		first_page = (tx.src & PAGE_MASK) >> PAGE_SHIFT;
-		last_page ((tx.src+tx.len-1) & PAGE_MASK) >> PAGE_SHIFT;
-		npages = last_page - first_page + 1;
-		npages_pinned = pin_user_pages_fast(tx.src, npages,
-				FOLL_LONGTERM, pciemu_dev->dma.pages);
-		if (npages != npages_pinned)
-			break;
-		pciemu_dev->dma.offset = ofs;
-		pciemu_dev->dma.npages = npages;
-		pciemu_dev->dma.len = tx.len;
-		pciemu_dma_work(pciemu_dev);
+		if (pciemu_check_size(tx.len) < 0)
+			return -ENOSPC;
+		if (!pciemu_setup_pages(pciemu_dev, &tx))
+			return pciemu_dma_setup(pciemu_dev, PCIEMU_MODE_WORK);
 		break;
-	case PCIEMU_TX_WAIT:
+	case PCIEMU_IOCTL_WAIT:
 		pciemu_dma_wait(pciemu_dev);
+		break;
+	case PCIEMU_IOCTL_WATCH:
+		copy_from_user(&tx, utx, sizeof(tx));
+		if (!pciemu_setup_pages(pciemu_dev, &tx))
+			return pciemu_dma_setup(pciemu_dev, PCIEMU_MODE_WATCH);
 		break;
 	default:
 		return -ENOTTY;
