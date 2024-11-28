@@ -86,6 +86,7 @@ int pciemu_dma_setup(struct pciemu_dev *pciemu_dev, int mode)
 
 	iowrite32(dma->npages, mmio + PCIEMU_HW_BAR0_DMA_CFG_PGS);
 	iowrite32(dma->len, mmio + PCIEMU_HW_BAR0_DMA_CFG_LEN);
+	iowrite32(dma->offset, mmio + PCIEMU_HW_BAR0_DMA_CFG_OFS);
 	iowrite32(mode, mmio + PCIEMU_HW_BAR0_DMA_CFG_MODE);
 	for (size_t ofs=0; ofs < dma->npages*sizeof(u32); ofs+=sizeof(u32)) {
 		iowrite32((u32)dma->dma_handle[i],

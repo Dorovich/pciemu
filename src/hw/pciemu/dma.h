@@ -33,16 +33,14 @@ typedef uint64_t dma_mask_t;
 /* transfer descriptor */
 typedef struct DMATransferDesc {
 	size_t npages;
+	size_t offset;
 	dma_addr_t addr;
-	/* dma_addr_t src; */
-	/* dma_addr_t dst; */
 	dma_size_t len;
 } DMATransferDesc;
 
 /* configuration of the DMA engine pre-execution */
 typedef struct DMAConfig {
 	DMATransferDesc txdesc;
-	/* dma_cmd_t cmd; */
 	dma_mode_t mode;
 	dma_mask_t mask;
 } DMAConfig;
