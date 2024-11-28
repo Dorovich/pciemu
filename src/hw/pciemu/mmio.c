@@ -50,8 +50,10 @@ static uint64_t pciemu_mmio_read(void *opaque, hwaddr addr, unsigned int size)
 {
 	PCIEMUDevice *dev = opaque;
 	uint64_t val = ~0ULL;
+
 	if (!pciemu_mmio_valid_access(addr, size))
 		return val;
+
 	switch (addr) {
 	case PCIEMU_HW_BAR0_REG_0:
 		val = dev->reg[0];
@@ -64,6 +66,15 @@ static uint64_t pciemu_mmio_read(void *opaque, hwaddr addr, unsigned int size)
 		break;
 	case PCIEMU_HW_BAR0_REG_3:
 		val = dev->reg[3];
+		break;
+	case PCIEMU_HW_BAR0_DMA_CFG_LEN:
+		val = dev->dma.config.txdesc.len;
+		break;
+	case PCIEMU_HW_BAR0_DMA_CFG_PGS:
+		val = dev->dma.config.npages;
+		break;
+	case PCIEMU_HW_BAR0_DMA_CFG_MODE:
+		val = dev->mode;
 		break;
 	}
 	return val;
@@ -84,8 +95,11 @@ static void pciemu_mmio_write(void *opaque, hwaddr addr, uint64_t val,
 			unsigned size)
 {
 	PCIEMUDevice *dev = opaque;
+	int aux;
+
 	if (!pciemu_mmio_valid_access(addr, size))
 		return;
+
 	switch (addr) {
 	case PCIEMU_HW_BAR0_REG_0:
 		dev->reg[0] = val;
@@ -109,23 +123,35 @@ static void pciemu_mmio_write(void *opaque, hwaddr addr, uint64_t val,
 	case PCIEMU_HW_BAR0_IRQ_0_LOWER:
 		pciemu_irq_lower(dev, 0);
 		break;
-	case PCIEMU_HW_BAR0_DMA_CFG_TXDESC_SRC:
-		pciemu_dma_config_txdesc_src(dev, val);
-		break;
-	case PCIEMU_HW_BAR0_DMA_CFG_TXDESC_DST:
-		pciemu_dma_config_txdesc_dst(dev, val);
-		break;
-	case PCIEMU_HW_BAR0_DMA_CFG_TXDESC_LEN:
+	case PCIEMU_HW_BAR0_DMA_CFG_LEN:
 		pciemu_dma_config_txdesc_len(dev, val);
 		break;
-	case PCIEMU_HW_BAR0_DMA_CFG_CMD:
-		pciemu_dma_config_cmd(dev, val);
+	case PCIEMU_HW_BAR0_DMA_CFG_PGS:
+		pciemu_dma_config_txdesc_npages(dev, val);
 		break;
+	case PCIEMU_HW_BAR0_DMA_CFG_MODE:
+		pciemu_dma_config_mode(dev, val);
+		break;
+	/* case PCIEMU_HW_BAR0_DMA_CFG_TXDESC_SRC: */
+	/* 	pciemu_dma_config_txdesc_src(dev, val); */
+	/* 	break; */
+	/* case PCIEMU_HW_BAR0_DMA_CFG_TXDESC_DST: */
+	/* 	pciemu_dma_config_txdesc_dst(dev, val); */
+	/* 	break; */
+	/* case PCIEMU_HW_BAR0_DMA_CFG_TXDESC_LEN: */
+	/* 	pciemu_dma_config_txdesc_len(dev, val); */
+	/* 	break; */
+	/* case PCIEMU_HW_BAR0_DMA_CFG_CMD: */
+	/* 	pciemu_dma_config_cmd(dev, val); */
+	/* 	break; */
 	case PCIEMU_HW_BAR0_DMA_DOORBELL_RING:
 		if (!pciemu_dma_input(dev))
 			break;
 		pciemu_proxy_push_req(PCIEMU_REQ_SYNC);
 		pciemu_proxy_push_req(PCIEMU_REQ_RING);
+		break;
+	default: /* DMA work area */
+		dev->dma.handle[addr-PCIEMU_HW_BAR0_DMA_WORK_AREA_START] = val;
 		break;
 	}
 }

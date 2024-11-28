@@ -111,6 +111,20 @@ static void pciemu_dma_execute(PCIEMUDevice *dev)
  * -----------------------------------------------------------------------------
  */
 
+void pciemu_dma_config_npages(PCIEMUDevice *dev, int mode)
+{
+	DMAStatus status = qatomic_read(&dev->dma.status);
+	if (status == DMA_STATUS_IDLE)
+		dev->dma.config.mode = mode;
+}
+
+void pciemu_dma_config_txdesc_addr(PCIEMUDevice *dev, dma_addr_t addr)
+{
+	DMAStatus status = qatomic_read(&dev->dma.status);
+	if (status == DMA_STATUS_IDLE)
+		dev->dma.config.txdesc.addr = addr;
+}
+
 /**
  * pciemu_dma_config_txdesc_src: Configure the source register
  *
@@ -121,12 +135,12 @@ static void pciemu_dma_execute(PCIEMUDevice *dev)
  *
  * @dev: Instance of PCIEMUDevice object being used
  */
-void pciemu_dma_config_txdesc_src(PCIEMUDevice *dev, dma_addr_t src)
-{
-	DMAStatus status = qatomic_read(&dev->dma.status);
-	if (status == DMA_STATUS_IDLE)
-		dev->dma.config.txdesc.src = src;
-}
+/* void pciemu_dma_config_txdesc_src(PCIEMUDevice *dev, dma_addr_t src) */
+/* { */
+/* 	DMAStatus status = qatomic_read(&dev->dma.status); */
+/* 	if (status == DMA_STATUS_IDLE) */
+/* 		dev->dma.config.txdesc.src = src; */
+/* } */
 
 /**
  * pciemu_dma_config_txdesc_dst: Configure the destination register
@@ -138,12 +152,12 @@ void pciemu_dma_config_txdesc_src(PCIEMUDevice *dev, dma_addr_t src)
  *
  * @dev: Instance of PCIEMUDevice object being used
  */
-void pciemu_dma_config_txdesc_dst(PCIEMUDevice *dev, dma_addr_t dst)
-{
-	DMAStatus status = qatomic_read(&dev->dma.status);
-	if (status == DMA_STATUS_IDLE)
-		dev->dma.config.txdesc.dst = dst;
-}
+/* void pciemu_dma_config_txdesc_dst(PCIEMUDevice *dev, dma_addr_t dst) */
+/* { */
+/* 	DMAStatus status = qatomic_read(&dev->dma.status); */
+/* 	if (status == DMA_STATUS_IDLE) */
+/* 		dev->dma.config.txdesc.dst = dst; */
+/* } */
 
 /**
  * pciemu_dma_config_txdesc_len: Configure the length register
@@ -169,29 +183,18 @@ void pciemu_dma_config_txdesc_len(PCIEMUDevice *dev, dma_size_t size)
  *
  * @dev: Instance of PCIEMUDevice object being used
  */
-void pciemu_dma_config_cmd(PCIEMUDevice *dev, dma_cmd_t cmd)
+/* void pciemu_dma_config_cmd(PCIEMUDevice *dev, dma_cmd_t cmd) */
+/* { */
+/* 	DMAStatus status = qatomic_read(&dev->dma.status); */
+/* 	if (status == DMA_STATUS_IDLE) */
+/* 		dev->dma.config.cmd = cmd; */
+/* } */
+
+void pciemu_dma_config_mode(PCIEMUDevice *dev, int mode)
 {
 	DMAStatus status = qatomic_read(&dev->dma.status);
 	if (status == DMA_STATUS_IDLE)
-		dev->dma.config.cmd = cmd;
-}
-
-/**
- * pciemu_dma_config_cmd: Quickly configure the DMA registers
- */
-void pciemu_dma_config_quick(PCIEMUDevice *dev, dma_addr_t src, dma_addr_t dst,
-		dma_size_t size, dma_cmd_t cmd)
-{
-	DMAEngine *dma = &dev->dma;
-
-	DMAStatus status = qatomic_read(&dma->status);
-	if (status != DMA_STATUS_IDLE)
-		return;
-
-	dma->config.txdesc.src = src;
-	dma->config.txdesc.dst = dst;
-	dma->config.txdesc.len = size;
-	dma->config.cmd = cmd;
+		dev->dma.config.mode = mode;
 }
 
 /**
@@ -233,10 +236,16 @@ void pciemu_dma_reset(PCIEMUDevice *dev)
 {
 	DMAEngine *dma = &dev->dma;
 	dma->status = DMA_STATUS_IDLE;
-	dma->config.txdesc.src = 0;
-	dma->config.txdesc.dst = 0;
+	/* dma->config.txdesc.src = 0; */
+	/* dma->config.txdesc.dst = 0; */
+	dma->config.txdesc.npages = 0;
+	dma->config.txdesc.addr = 0;
 	dma->config.txdesc.len = 0;
-	dma->config.cmd = 0;
+	/* dma->config.cmd = 0; */
+	dma->config.mode = 0;
+
+	/* clear the page handles */
+	memset(dma->handles, 0, PCIEMU_HW_BAR0_DMA_WORK_AREA_SIZE);
 
 	/* clear the internal buffer */
 	memset(dma->buff, 0, PCIEMU_HW_DMA_AREA_SIZE);
@@ -280,57 +289,57 @@ void pciemu_dma_fini(PCIEMUDevice *dev)
 /**
  * pciemu_dma_input: Read input data into DMA buffer
  */
-int pciemu_dma_input(PCIEMUDevice *dev)
-{
-	int ret, len;
-	DMAEngine *dma;
-	DMAStatus status;
-	dma_addr_t src, dst;
+/* int pciemu_dma_input(PCIEMUDevice *dev) */
+/* { */
+/* 	int ret, len; */
+/* 	DMAEngine *dma; */
+/* 	DMAStatus status; */
+/* 	dma_addr_t src, dst; */
 
-	status = qatomic_cmpxchg(&dev->dma.status, DMA_STATUS_IDLE,
-			DMA_STATUS_EXECUTING);
-	if (status == DMA_STATUS_EXECUTING)
-		return EXIT_FAILURE;
+/* 	status = qatomic_cmpxchg(&dev->dma.status, DMA_STATUS_IDLE, */
+/* 			DMA_STATUS_EXECUTING); */
+/* 	if (status == DMA_STATUS_EXECUTING) */
+/* 		return EXIT_FAILURE; */
 
-	dma = &dev->dma;
-	src = pciemu_dma_addr_mask(dev, dma->config.txdesc.src);
-	dst = dma->buff;
-	len = dma->config.txdesc.len;
-	ret = pci_dma_read(&dev->pci_dev, src, dst, len);
-	if (ret) {
-		qemu_log_mask(LOG_GUEST_ERROR, "pci_dma_read err=%d\n", err);
-		ret = EXIT_FAILURE;
-	}
+/* 	dma = &dev->dma; */
+/* 	src = pciemu_dma_addr_mask(dev, dma->config.txdesc.src); */
+/* 	dst = dma->buff; */
+/* 	len = dma->config.txdesc.len; */
+/* 	ret = pci_dma_read(&dev->pci_dev, src, dst, len); */
+/* 	if (ret) { */
+/* 		qemu_log_mask(LOG_GUEST_ERROR, "pci_dma_read err=%d\n", err); */
+/* 		ret = EXIT_FAILURE; */
+/* 	} */
 
-	qatomic_set(&dev->dma.status, DMA_STATUS_IDLE);
-	return ret;
-}
+/* 	qatomic_set(&dev->dma.status, DMA_STATUS_IDLE); */
+/* 	return ret; */
+/* } */
 
 /**
  * pciemu_dma_output: Write output data into RAM/other device
  */
-int pciemu_dma_output(PCIEMUDevice *dev)
-{
-	int ret, len;
-	DMAEngine *dma;
-	DMAStatus status;
-	dma_addr_t src, dst;
+/* int pciemu_dma_output(PCIEMUDevice *dev) */
+/* { */
+/* 	int ret, len; */
+/* 	DMAEngine *dma; */
+/* 	DMAStatus status; */
+/* 	dma_addr_t src, dst; */
 
-	status = qatomic_cmpxchg(&dev->dma.status, DMA_STATUS_IDLE,
-			DMA_STATUS_EXECUTING);
-	if (status == DMA_STATUS_EXECUTING)
-		return EXIT_FAILURE;
+/* 	status = qatomic_cmpxchg(&dev->dma.status, DMA_STATUS_IDLE, */
+/* 			DMA_STATUS_EXECUTING); */
+/* 	if (status == DMA_STATUS_EXECUTING) */
+/* 		return EXIT_FAILURE; */
 
-	dma = &dev->dma;
-	src = dma->buff;
-	dst = pciemu_dma_addr_mask(dev, dma->config.txdesc.dst);
-	len = dma->config.txdesc.len;
-	ret = pci_dma_write(&dev->pci_dev, dst, src, len);
-	if (ret) {
-		qemu_log_mask(LOG_GUEST_ERROR, "pci_dma_write err=%d\n", err);
-		ret = EXIT_FAILURE;
-	}
+/* 	dma = &dev->dma; */
+/* 	src = dma->buff; */
+/* 	dst = pciemu_dma_addr_mask(dev, dma->config.txdesc.dst); */
+/* 	len = dma->config.txdesc.len; */
+/* 	ret = pci_dma_write(&dev->pci_dev, dst, src, len); */
+/* 	if (ret) { */
+/* 		qemu_log_mask(LOG_GUEST_ERROR, "pci_dma_write err=%d\n", err); */
+/* 		ret = EXIT_FAILURE; */
+/* 	} */
 
-	qatomic_set(&dev->dma.status, DMA_STATUS_IDLE);
-	return ret;
-}
+/* 	qatomic_set(&dev->dma.status, DMA_STATUS_IDLE); */
+/* 	return ret; */
+/* } */

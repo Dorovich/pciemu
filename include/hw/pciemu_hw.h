@@ -43,7 +43,7 @@
 #define PCIEMU_HW_BAR0_DMA_CFG_MODE 0x40 /* sender or receiver */
 #define PCIEMU_HW_BAR0_DMA_DOORBELL_RING 0x48
 #define PCIEMU_HW_BAR0_DMA_WORK_AREA_START 0x50
-#define PCIEMU_HW_BAR0_DMA_WORK_AREA_SIZE 0x200000 /* page mappings (2MB) */
+#define PCIEMU_HW_BAR0_DMA_WORK_AREA_SIZE (0x200000/PAGE_SIZE)
 
 /* MMIO BAR0 Boundaries */
 #define PCIEMU_HW_BAR0_START PCIEMU_HW_BAR0_REG_0
@@ -52,7 +52,7 @@
 
 /* DMA */
 #define PCIEMU_HW_DMA_ADDR_CAPABILITY 32
-#define PCIEMU_HW_DMA_AREA_START 0x10000
+#define PCIEMU_HW_DMA_AREA_START 0x300000
 #define PCIEMU_HW_DMA_AREA_SIZE 0x1000 // 4kB
 
 /* DMA Commands expliciting direction of transfer */

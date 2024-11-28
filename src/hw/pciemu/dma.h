@@ -19,7 +19,10 @@
 typedef struct PCIEMUDevice PCIEMUDevice;
 
 /* dma command */
-typedef uint64_t dma_cmd_t;
+/* typedef uint64_t dma_cmd_t; */
+
+/* dma mode */
+typedef uint64_t dma_mode_t;
 
 /* dma size */
 typedef dma_addr_t dma_size_t;
@@ -29,15 +32,18 @@ typedef uint64_t dma_mask_t;
 
 /* transfer descriptor */
 typedef struct DMATransferDesc {
-	dma_addr_t src;
-	dma_addr_t dst;
+	size_t npages;
+	dma_addr_t addr;
+	/* dma_addr_t src; */
+	/* dma_addr_t dst; */
 	dma_size_t len;
 } DMATransferDesc;
 
 /* configuration of the DMA engine pre-execution */
 typedef struct DMAConfig {
 	DMATransferDesc txdesc;
-	dma_cmd_t cmd;
+	/* dma_cmd_t cmd; */
+	dma_mode_t mode;
 	dma_mask_t mask;
 } DMAConfig;
 
@@ -52,19 +58,22 @@ typedef struct DMAEngine {
 	DMAConfig config;
 	DMAStatus status;
 	uint8_t buff[PCIEMU_HW_DMA_AREA_SIZE];
+	uint64_t handles[PCIEMU_HW_BAR0_DMA_WORK_AREA_SIZE];
 } DMAEngine;
 
+void pciemu_dma_config_txdesc_npages(PCIEMUDevice *dev, size_t npages);
 
-void pciemu_dma_config_txdesc_src(PCIEMUDevice *dev, dma_addr_t src);
+void pciemu_dma_config_txdesc_addr(PCIEMUDevice *dev, dma_addr_t addr);
 
-void pciemu_dma_config_txdesc_dst(PCIEMUDevice *dev, dma_addr_t dst);
+/* void pciemu_dma_config_txdesc_src(PCIEMUDevice *dev, dma_addr_t src); */
+
+/* void pciemu_dma_config_txdesc_dst(PCIEMUDevice *dev, dma_addr_t dst); */
 
 void pciemu_dma_config_txdesc_len(PCIEMUDevice *dev, dma_size_t size);
 
-void pciemu_dma_config_cmd(PCIEMUDevice *dev, dma_cmd_t cmd);
+/* void pciemu_dma_config_cmd(PCIEMUDevice *dev, dma_cmd_t cmd); */
 
-void pciemu_dma_config_quick(PCIEMUDevice *dev, dma_addr_t src, dma_addr_t dst,
-		dma_size_t size, dma_cmd_t cmd);
+void pciemu_dma_config_mode(PCIEMUDevice *dev, dma_mode_t mode);
 
 void pciemu_dma_doorbell_ring(PCIEMUDevice *dev);
 
@@ -73,9 +82,5 @@ void pciemu_dma_reset(PCIEMUDevice *dev);
 void pciemu_dma_init(PCIEMUDevice *dev, Error **errp);
 
 void pciemu_dma_fini(PCIEMUDevice *dev);
-
-int pciemu_dma_input(PCIEMUDevice *dev);
-
-int pciemu_dma_output(PCIEMUDevice *dev);
 
 #endif /* PCIEMU_DMA_H */
