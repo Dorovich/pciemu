@@ -47,12 +47,30 @@ static inline bool pciemu_dma_inside_device_boundaries(dma_addr_t addr)
 		addr <= PCIEMU_HW_DMA_AREA_START + PCIEMU_HW_DMA_AREA_SIZE);
 }
 
+/* static dma_size_t pciemu_dma_read_fill_buffer(DMAEngine *dma, */
+/* 					int handle_pos, dma_size_t len) */
+/* { */
+/* 	int pgsize = qemu_target_page_size(); */
+
+/* 	if (handle_pos < 0 || handle_pos >= PCIEMU_HW_BAR0_DMA_WORK_AREA_SIZE) */
+/* 		return -1; */
+
+/* 	if (!(dma->config.txdesc.npages > 0 && dma->config.txdesc.len > 0)) */
+/* 		return -1; */
+
+/* 	/\* TODO *\/ */
+
+/* 	return handle_pos; */
+/* } */
+
 static void pciemu_dma_execute(PCIEMUDevice *dev)
 {
 	DMAEngine *dma;
 	dma_addr_t src, dst;
-	dma_size_t len;
-	int err;
+	dma_size_t len, read_len;
+	size_t ofs;
+	int handle_pos, err;
+	const size_t pgsize = qemu_target_page_size();
 
 	dma = &dev->dma;
 
@@ -62,29 +80,36 @@ static void pciemu_dma_execute(PCIEMUDevice *dev)
 		 *   The transfer direction is this->other.
 		 *   dma->config.txdesc.npages : pages to transfer
 		 *   dma->config.txdesc.offset : first page offset
-		 *   dma->config.txdesc.addr : starting address to read
 		 *   dma->config.txdesc.len : length of bytes
 		 *   dma->buff : dedicated area to read from RAM
 		 *   dma->handles : mappings to pages
 		 */
-		/* TODO: CUIDADO porque en dma->handles tenemos el mapeo de
-		 * las paginas que hay que leer, asi que no se deberia usar
-		 * la variable en dma->config.txdesc.addr para leer...
-		 */
-		src = dma->config.txdesc.addr;
 		dst = PCIEMU_HW_DMA_AREA_START;
 		len = dma->config.txdesc.len;
+		ofs = dma->config.txdesc.offset;
 
-		for (int i = 0; i < dma->config.txdesc.npages; ++i) {
-			/* TODO */
-		}
+		if (!(len > 0 && dma->config.txdesc.npages > 0))
+			return;
+
+		handle_pos = 0;
+		do {
+			read_len = (len > pgsize-ofs) ? pgsize-ofs : len;
+			len -= read_len;
+			ofs = 0;
+
+			src = pciemu_dma_addr_mask(dma->handles[handle_pos]);
+			pci_dma_read(&dev->pci_dev, src, dst, read_len);
+			handle_pos++;
+
+			pciemu_proxy_push_req(PCIEMU_REQ_SYNC);
+		} while (len > 0 &&
+			handle_pos < PCIEMU_HW_BAR0_DMA_WORK_AREA_SIZE);
 
 		break;
 	case PCIEMU_MODE_WATCH:
 		/* WATCH MODE
 		 *   The transfer direction is other->this.
 		 *   dma->config.txdesc.npages : available pages
-		 *   dma->config.txdesc.addr : starting address to write
 		 *   dma->config.txdesc.len : length of available bytes
 		 *   dma->buff : dedicated area to write to RAM
 		 *   dma->handles : mappings to pages
