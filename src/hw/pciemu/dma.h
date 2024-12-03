@@ -34,8 +34,8 @@ typedef uint64_t dma_mask_t;
 typedef struct DMATransferDesc {
 	size_t npages;
 	size_t offset;
-	dma_addr_t addr;
 	dma_size_t len;
+	dma_addr_t handles[PCIEMU_HW_BAR0_DMA_WORK_AREA_SIZE];
 } DMATransferDesc;
 
 /* configuration of the DMA engine pre-execution */
@@ -56,7 +56,6 @@ typedef struct DMAEngine {
 	DMAConfig config;
 	DMAStatus status;
 	uint8_t buff[PCIEMU_HW_DMA_AREA_SIZE];
-	uint64_t handles[PCIEMU_HW_BAR0_DMA_WORK_AREA_SIZE];
 } DMAEngine;
 
 void pciemu_dma_config_txdesc_npages(PCIEMUDevice *dev, size_t npages);

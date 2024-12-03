@@ -47,32 +47,45 @@ static inline bool pciemu_dma_inside_device_boundaries(dma_addr_t addr)
 		addr <= PCIEMU_HW_DMA_AREA_START + PCIEMU_HW_DMA_AREA_SIZE);
 }
 
-/* static dma_size_t pciemu_dma_read_fill_buffer(DMAEngine *dma, */
-/* 					int handle_pos, dma_size_t len) */
-/* { */
-/* 	int pgsize = qemu_target_page_size(); */
+void pciemu_dma_transfer_page(PCIEMUDevice *dev)
+{
+	dma_size_t len;
 
-/* 	if (handle_pos < 0 || handle_pos >= PCIEMU_HW_BAR0_DMA_WORK_AREA_SIZE) */
-/* 		return -1; */
+	do {
+		// x
+		pciemu_proxy_transfer_page(dev);
+	} while (len > 0);
+}
 
-/* 	if (!(dma->config.txdesc.npages > 0 && dma->config.txdesc.len > 0)) */
-/* 		return -1; */
+void pciemu_dma_read_page(PCIEMUDevice *dev, dma_addr_t src, dma_addr_t dst,
+			size_t *ofs, dma_size_t *len, size_t page_size)
+{
+	dma_size_t read_len;
 
-/* 	/\* TODO *\/ */
+	if (*ofs > 0) {
+		read_len = (*len > pgsize - *ofs) ? pgsize - *ofs : *len;
+		*ofs = 0;
+	} else {
+		read_len = *len > pgsize ? pgsize : *len;
+	}
+	*len -= read_len;
 
-/* 	return handle_pos; */
-/* } */
+	pci_dma_read(&dev->pci_dev, src, dst, read_len);
+}
 
 static void pciemu_dma_execute(PCIEMUDevice *dev)
 {
 	DMAEngine *dma;
 	dma_addr_t src, dst;
-	dma_size_t len, read_len;
+	dma_size_t len;
 	size_t ofs;
 	int handle_pos, err;
 	const size_t pgsize = qemu_target_page_size();
 
 	dma = &dev->dma;
+
+	if (!(len > 0 && dma->config.txdesc.npages > 0))
+		return;
 
 	switch(dma->config.mode) {
 	case PCIEMU_MODE_WORK:
@@ -88,22 +101,12 @@ static void pciemu_dma_execute(PCIEMUDevice *dev)
 		len = dma->config.txdesc.len;
 		ofs = dma->config.txdesc.offset;
 
-		if (!(len > 0 && dma->config.txdesc.npages > 0))
-			return;
-
 		handle_pos = 0;
 		do {
-			read_len = (len > pgsize-ofs) ? pgsize-ofs : len;
-			len -= read_len;
-			ofs = 0;
-
-			src = pciemu_dma_addr_mask(dma->handles[handle_pos]);
-			pci_dma_read(&dev->pci_dev, src, dst, read_len);
-			handle_pos++;
-
+			src = pciemu_dma_addr_mask(dma->handles[handle_pos++]);
+			pciemu_dma_read_page(dev, src, dst, &ofs, &len, pgsize);
 			pciemu_proxy_push_req(PCIEMU_REQ_SYNC);
-		} while (len > 0 &&
-			handle_pos < PCIEMU_HW_BAR0_DMA_WORK_AREA_SIZE);
+		} while (len > 0);
 
 		break;
 	case PCIEMU_MODE_WATCH:
